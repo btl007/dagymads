@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-import { SignedIn, SignedOut, SignIn, SignUp, UserButton } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignIn, SignUp, UserButton, RedirectToSignIn } from '@clerk/clerk-react';
 
 import Header from './components/Header';
 import Home from './pages/Home';
@@ -8,6 +8,7 @@ import NotFound from './pages/NotFound'; //404대응
 import DagymGuide from './pages/dagymguide';
 
 import ScriptEditor from './pages/scriptEditor';
+import AdminDashboard from './pages/AdminDashboard'; // Import AdminDashboard
 
 function App() {
   return (
@@ -22,7 +23,31 @@ function App() {
           {/* Private Route */}
           <Route
             path="/editor/:scriptId?"
-            element={<ScriptEditor />}
+            element={
+              <>
+                <SignedIn>
+                  <ScriptEditor />
+                </SignedIn>
+                <SignedOut>
+                  <RedirectToSignIn />
+                </SignedOut>
+              </>
+            }
+          />
+
+          {/* Admin Dashboard Route */}
+          <Route
+            path="/admin"
+            element={
+              <>
+                <SignedIn>
+                  <AdminDashboard />
+                </SignedIn>
+                <SignedOut>
+                  <RedirectToSignIn />
+                </SignedOut>
+              </>
+            }
           />
 
           {/* Sign In & Sign Up */}

@@ -12,7 +12,7 @@ import { $createScriptContainerNode } from '../nodes/ScriptContainerNode'; // Ke
 import sampleScripts from '../data/sampleScript';
 
 // --- SaveButton Component ---
-const SaveButton = ({ title, scriptId, onSaveSuccess }) => {
+const SaveButton = ({ title, scriptId, onSaveSuccess, currentStatus }) => {
   const [editor] = useLexicalComposerContext();
   const supabase = useSupabase();
   const { user } = useUser();
@@ -63,13 +63,45 @@ const SaveButton = ({ title, scriptId, onSaveSuccess }) => {
     }
   };
 
+  const handleSubmit = async () => {
+    if (!supabase || !user || !scriptId) {
+      alert('스크립트가 저장되지 않았거나 초기화 중입니다.');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('scripts')
+      .update({ status: 'submitted', updated_at: new Date(), submitted_at: new Date() }) // Add submitted_at
+      .eq('id', scriptId);
+
+    if (error) {
+      console.error('Error submitting script:', error);
+      alert(`대본 접수에 실패했습니다: ${error.message}`);
+    } else {
+      alert('대본이 성공적으로 접수되었습니다!');
+      // Optionally, refresh the page or update UI to reflect new status
+      window.location.reload(); // Simple reload to reflect status change
+    }
+  };
+
   return (
-    <button
-      onClick={handleSave}
-      className="absolute top-4 right-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-    >
-      저장
-    </button>
+    <div className="absolute top-4 right-4 flex space-x-2">
+      <button
+        onClick={handleSave}
+        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+      >
+        저장
+      </button>
+      {scriptId && ( // Only show submit button if script is already saved (has an ID)
+        <button
+          onClick={handleSubmit}
+          className={`font-bold py-2 px-4 rounded ${currentStatus === 'submitted' ? 'bg-gray-500 text-gray-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-700 text-white'}`}
+          disabled={currentStatus === 'submitted'}
+        >
+          {currentStatus === 'submitted' ? '접수됨' : '접수'}
+        </button>
+      )}
+    </div>
   );
 };
 
@@ -82,6 +114,7 @@ export default function ScriptEditor() {
   const [title, setTitle] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isMyScriptVisible, setIsMyScriptVisible] = useState(false);
+  const [currentScriptStatus, setCurrentScriptStatus] = useState('draft'); // New state for script status
   const [isDirty, setIsDirty] = useState(false); // State to track unsaved changes
   const initialContentRef = useRef(null); // Ref to store the initial content
 
@@ -92,21 +125,24 @@ export default function ScriptEditor() {
       setIsLoading(true);
       try {
         let initialContentJson;
+        let scriptStatus = 'draft'; // Default status
         if (scriptId) {
           const { data, error } = await supabase
             .from('scripts')
-            .select('title, content')
+            .select('title, content, status') // Select status as well
             .eq('id', scriptId)
             .single();
           if (error) throw error;
           if (data) {
             setTitle(data.title);
             initialContentJson = data.content;
+            scriptStatus = data.status || 'draft'; // Use fetched status or default to 'draft'
           }
         } else {
           setTitle('제목없는 대본');
           initialContentJson = {root: {children: [{type: 'paragraph', children: []}], direction: null, format: '', indent: 0, type: 'root', version: 1}};
         }
+        setCurrentScriptStatus(scriptStatus); // Set the status state
         const editorState = editorInstance.parseEditorState(initialContentJson);
         editorInstance.setEditorState(editorState);
         initialContentRef.current = JSON.stringify(initialContentJson);
@@ -218,7 +254,8 @@ export default function ScriptEditor() {
         <Editor
           onReady={setEditorInstance}
           onChange={handleOnChange}
-          customChildren={!isLoading && <SaveButton title={title} scriptId={scriptId} onSaveSuccess={handleSaveSuccess} />}
+          customChildren={!isLoading && <SaveButton title={title} scriptId={scriptId} onSaveSuccess={handleSaveSuccess} currentStatus={currentScriptStatus} />}
+        />
         />
 
         {isMyScriptVisible && (

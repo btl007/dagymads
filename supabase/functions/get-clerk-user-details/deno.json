@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "@clerk/clerk-sdk-node": "npm:@clerk/clerk-sdk-node"
+  }
+}

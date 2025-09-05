@@ -42,7 +42,7 @@ const MyScript = ({ handleNavigate }) => {
       try {
         const { data, error } = await supabase
           .from('scripts')
-          .select('id, title, content, updated_at')
+          .select('id, title, content, updated_at, status') // Select status as well
           .order('updated_at', { ascending: false });
 
         if (error) {
@@ -111,7 +111,7 @@ const MyScript = ({ handleNavigate }) => {
                 </p>
                 <div className="flex justify-between items-center mt-3">
                     <p className="text-xs text-gray-500">
-                        수정: {new Date(script.updated_at).toLocaleString()}
+                        상태: {script.status || 'draft'} | 수정: {new Date(script.updated_at).toLocaleString()}
                     </p>
                     <div className="flex items-center space-x-2">
                         <button onClick={() => handleNavigate(script.id)} className="px-3 py-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md">

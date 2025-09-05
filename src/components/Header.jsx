@@ -2,17 +2,25 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { SignedIn, SignedOut, UserButton } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
 
 import logo from '../img/wsk_logo_white.png';
 
 export default function Header() {
   const [isMObileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, isLoaded } = useUser();
+  const isAdmin = isLoaded && user && user.publicMetadata && user.publicMetadata.is_admin === "true";
+  console.log('Current user isAdmin status:', isAdmin);
+  console.log('User object:', user); // Also log the full user object for more context
 
   const menuItems = [
     { label: "DagymGuide", to: "dagymguide" },
     { label: "ScriptEditor", to: "editor" },
   ];
+
+  if (isAdmin) {
+    menuItems.push({ label: "Admin", to: "admin" });
+  }
 
   return (
     <header className="w-full fixed top-0 left-0 z-50 bg-primary bg-opacity-70 border-b border-white/10">
