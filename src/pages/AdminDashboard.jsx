@@ -52,6 +52,7 @@ const AdminDashboard = () => {
   const [selectedUserId, setSelectedUserId] = useState(null); // New state for selected user in column 1
   const [selectedScriptId, setSelectedScriptId] = useState(null); // New state for selected script in column 2
   const [userNamesMap, setUserNamesMap] = useState({}); // New state for storing user names
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null); // New state for selected user's profile
 
   if (!isLoaded) {
     // Clerk user data is not yet loaded
@@ -143,6 +144,34 @@ const AdminDashboard = () => {
     fetchSubmittedScripts();
   }, [supabase]); // Dependency array includes supabase
 
+  // Effect to fetch selected user's profile details
+  useEffect(() => {
+    if (!supabase || !selectedUserId) {
+      setSelectedUserProfile(null); // Clear profile if no user selected
+      return;
+    }
+
+    const fetchUserProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('*') // Select all profile fields
+          .eq('user_id', selectedUserId)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 means "no rows found"
+          throw error;
+        }
+        setSelectedUserProfile(data);
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
+        setSelectedUserProfile(null); // Clear profile on error
+      }
+    };
+
+    fetchUserProfile();
+  }, [supabase, selectedUserId]); // Re-run when supabase or selectedUserId changes
+
   const handleStatusChange = async (scriptId, newStatus) => {
     if (!supabase) return;
     if (!window.confirm(`대본의 상태를 '${newStatus}'(으)로 변경하시겠습니까?`)) {
@@ -221,6 +250,19 @@ const AdminDashboard = () => {
             {/* Column 2: Scripts for Selected User */}
             <div className="w-1/3 border-r border-gray-200 p-4 overflow-y-auto">
               <h2 className="text-xl text-black font-semibold mb-4">대본 제목</h2>
+              {selectedUserId && (
+                <div className="mb-4 p-3 bg-gray-100 rounded-md">
+                  <h3 className="font-bold text-lg text-black">
+                    {userNamesMap[selectedUserId]?.firstName || userNamesMap[selectedUserId]?.username || selectedUserId}
+                  </h3>
+                  {selectedUserProfile && (
+                    <>
+                      <p className="text-sm text-gray-700">전화번호: {selectedUserProfile.phone_number || '없음'}</p>
+                      <p className="text-sm text-gray-700">담당자 이름: {selectedUserProfile.member_name || '없음'}</p>
+                    </>
+                  )}
+                </div>
+              )}
               {selectedUserId && groupedScripts[selectedUserId] && (
                 <ul className="space-y-2">
                   {groupedScripts[selectedUserId].map((script) => (

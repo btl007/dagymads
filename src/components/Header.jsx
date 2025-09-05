@@ -8,7 +8,7 @@ import logo from '../img/wsk_logo_white.png';
 
 export default function Header() {
   const [isMObileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
   const isAdmin = isLoaded && user && user.publicMetadata && user.publicMetadata.is_admin === "true";
   console.log('Current user isAdmin status:', isAdmin);
   console.log('User object:', user); // Also log the full user object for more context
@@ -17,6 +17,10 @@ export default function Header() {
     { label: "DagymGuide", to: "dagymguide" },
     { label: "ScriptEditor", to: "editor" },
   ];
+
+  if (isSignedIn) { // Only show profile link if signed in
+    menuItems.push({ label: "My Profile", to: "profile" });
+  }
 
   if (isAdmin) {
     menuItems.push({ label: "Admin", to: "admin" });
