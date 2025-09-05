@@ -1,0 +1,304 @@
+@import "tailwindcss";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0a0a13;
+  /*background-color: #132238; */
+  color: white;
+}
+
+@keyframes gradient-xy {
+  0%, 100% {
+    background-position: left top;
+  }
+  50% {
+    background-position: right bottom;
+  }
+}
+
+.bg-flowing {
+  background-size: 200%, 200%;
+  animation: gradient-xy 10s ease infinite;
+}
+
+
+/* Add font */
+@import "@fontsource/roboto-mono"; /* Add Roboto-mono with npm */
+@import "@fontsource/unbounded"; /* Add Unbounded with npm */
+@import "@fontsource/ibm-plex-sans-kr"; /* Add IBM Plex Sans KR */
+
+.font-roboto {
+  font-family: 'roboto-mono', monospace;
+}
+
+.font-unbounded {
+  font-family: 'unbounded', sans-serif;
+}
+
+.font-ibm {
+  font-family: 'ibm-plex-sans-kr', sans-serif;
+}
+
+
+/* Clas Display 수동 추가 */
+.font-clash {
+  font-family: 'Clash Display', sans-serif;
+}
+
+  @font-face {
+    font-family: 'Clash Display';
+    src: url('/src/fonts/ClashDisplay-Extralight.otf') format('opentype');
+    font-weight: 200;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Clash Display';
+    src: url('/src/fonts/ClashDisplay-Light.otf') format('opentype');
+    font-weight: 300;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Clash Display';
+    src: url('/src/fonts/ClashDisplay-Medium.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Clash Display';
+    src: url('/src/fonts/ClashDisplay-Regular.otf') format('opentype');
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Clash Display';
+    src: url('/src/fonts/ClashDisplay-Semibold.otf') format('opentype');
+    font-weight: 600;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Clash Display';
+    src: url('/src/fonts/ClashDisplay-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+  }
+
+/* Robert Sans 수동 추가 */
+.font-robert {
+  font-family: 'Robert Sans', sans-serif;
+}
+  /* Thin */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-Thin.ttf') format('truetype');
+    font-weight: 100;
+    font-style: normal;
+  }
+  /* ExtraLight */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-ExtraLight.ttf') format('truetype');
+    font-weight: 200;
+    font-style: normal;
+  }
+  /* Light */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-Light.ttf') format('truetype');
+    font-weight: 300;
+    font-style: normal;
+  }
+  /* Regular */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+  }
+  /* Medium */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+  }
+  /* Semibold */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+  }
+  /* Bold */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+  }
+  /* ExtraBold */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-ExtraBold.ttf') format('truetype');
+    font-weight: 800;
+    font-style: normal;
+  }
+  /* Black */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-Black.ttf') format('truetype');
+    font-weight: 900;
+    font-style: normal;
+  }
+  /* Italic */
+  /* Thin Italic */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-ThinItalic.ttf') format('truetype');
+    font-weight: 100;
+    font-style: italic;
+  }
+  /* ExtraLight italic */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-ExtraLightItalic.ttf') format('truetype');
+    font-weight: 200;
+    font-style: italic;
+  }
+  /* Light italic*/
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-LightItalic.ttf') format('truetype');
+    font-weight: 300;
+    font-style: italic;
+  }
+  /* Regular italic */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-Italic.ttf') format('truetype');
+    font-weight: 400;
+    font-style: italic;
+  }
+  /* Medium italic */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-MediumItalic.ttf') format('truetype');
+    font-weight: 500;
+    font-style: italic;
+  }
+  /* Semibold italic */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-SemiBoldItalic.ttf') format('truetype');
+    font-weight: 600;
+    font-style: italic;
+  }
+  /* Bold italic */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-BoldItalic.ttf') format('truetype');
+    font-weight: 700;
+    font-style: italic;
+  }
+  /* ExtraBold italic */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-ExtraBoldItalic.ttf') format('truetype');
+    font-weight: 800;
+    font-style: italic;
+  }
+  /* Black italic */
+  @font-face {
+    font-family: 'Robert Sans';
+    src: url('/src/fonts/RobertSans-BlackItalic.ttf') format('truetype');
+    font-weight: 900;
+    font-style: italic;
+  }
+
+.script-container {
+  position: relative; /* This is critical for positioning the menu */
+}
+
+.block-management-menu-container {
+  position: absolute;
+  top: 50%;
+  left: -80px; /* Adjust as needed to position outside the block */
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 10;
+}
+
+.script-container:hover .block-management-menu-container {
+  opacity: 1; /* Show on hover */
+}
+
+.block-management-toggle-button {
+  background-color: #475569;
+  color: white;
+  border: none;
+  border-radius: 0.5rem; /* rounded-lg */
+  width: auto;
+  padding: 2px 8px;
+  height: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.block-management-toggle-button:hover {
+  background-color: #64748b; /* slate-600 */
+}
+
+.block-management-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #1e293b; /* slate-800 */
+  border-radius: 0.5rem;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 11;
+}
+
+.block-management-option {
+  background-color: transparent;
+  color: white;
+  border: none;
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 0.25rem;
+}
+
+.block-management-option:hover {
+  background-color: #334155; /* slate-700 */
+}
+
+.block-management-option svg {
+  color: white /* Default icon Color */
+}
+
+.block-management-option:hover svg {
+  color: red;
+}

@@ -1,0 +1,280 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 .SFNS-Regular;\f1\fnil\fcharset0 .AppleSystemUIFontMonospaced-Regular;\f2\fnil\fcharset0 HelveticaNeue-Bold;
+}
+{\colortbl;\red255\green255\blue255;\red14\green14\blue14;}
+{\*\expandedcolortbl;;\cssrgb\c6700\c6700\c6700;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf2 \uc0\u47568 \u50432 \u54616 \u49888  \u51613 \u49345 \u51008  \'93Clerk \u53664 \u53360 \u51032  sub\u44032  UUID\u44032  \u50500 \u45768 \u46972 \u49436 , Supabase\u51032  
+\f1 auth.uid()
+\f0 \uc0\u44032  UUID \u54028 \u49905 \u51012  \u44053 \u51228 \u54616 \u45796 \u44032  22P02(\u50976 \u54952 \u54616 \u51648  \u50506 \u51008  uuid) \u50640 \u47084 \u47484  \u53552 \u46888 \u47532 \u45716 \'94 \u51204 \u54805 \u51201 \u51064  \u52992 \u51060 \u49828 \u51077 \u45768 \u45796 .\
+\uc0\u54645 \u49900  \u51221 \u47532 \u48512 \u53552  \u46300 \u47532 \u47732 :\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f2\b auth.uid() \uc0\u49324 \u50857  \u44552 \u51648 
+\f0\b0  (\uc0\u50808 \u48512  IdP(Clerk) \u50672 \u46041  \u49884  sub\u44032  uuid\u44032  \u50500 \u45776  \u49688  \u51080 \u51020 )\
+	\'95	
+\f2\b user_id \uc0\u52972 \u47100 \u51008  TEXT
+\f0\b0  \uc0\u47196  \u46160 \u44256 ,\
+	\'95	
+\f2\b RLS\uc0\u50640 \u49436 \u45716  auth.jwt() ->> 'sub'
+\f0\b0  \uc0\u47196  JWT\u51032  sub\u47484  \u53581 \u49828 \u53944 \u47196  \u44732 \u45236  \u48708 \u44368 \u54633 \u45768 \u45796 .\
+\
+\uc0\u50500 \u47000  \u49692 \u49436 \u45824 \u47196  \u51221 \u47532 \'b7\u51201 \u50857 \u54616 \u49884 \u47732  \u51200 \u51109 /\u51312 \u54924 /\u49688 \u51221 \u51060  \u51221 \u49345  \u46041 \u51089 \u54633 \u45768 \u45796 .\
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 1) \uc0\u53580 \u51060 \u48660  \u49828 \u53412 \u47560  (\u44428 \u51109 )\
+------------------------------------ sql ------------------------------------\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 -- scripts \uc0\u53580 \u51060 \u48660 \
+create table if not exists public.scripts (\
+  id uuid primary key default gen_random_uuid(),\
+  user_id text not null,                     -- Clerk user id (\uc0\u50696 : "user_abc123")\
+  title text,\
+  content jsonb not null,                    -- Lexical JSON \uc0\u51200 \u51109 \
+  created_at timestamptz not null default now(),\
+  updated_at timestamptz not null default now()\
+);\
+\
+-- \uc0\u50629 \u45936 \u51060 \u53944  \u53944 \u47532 \u44144  (updated_at \u51088 \u46041  \u44081 \u49888 )\
+create or replace function public.set_updated_at()\
+returns trigger language plpgsql as $$\
+begin\
+  new.updated_at = now();\
+  return new;\
+end;\
+$$;\
+\
+drop trigger if exists trg_scripts_updated_at on public.scripts;\
+create trigger trg_scripts_updated_at\
+before update on public.scripts\
+for each row execute function public.set_updated_at();\
+\
+------------------------------------------------------------------------\
+\pard\tx860\tx1420\tx1980\tx2540\tx3100\tx3660\tx4220\tx4780\tx5340\tx5900\tx6460\tx7020\li300\sl324\slmult1\partightenfactor0
+\cf2 \uc0\u51060 \u48120  \u51080 \u51004 \u49884 \u47732  \u53440 \u51077 \u47564  \u51216 \u44160 \u54644  \u51452 \u49464 \u50836 : 
+\f2\b user_id\uc0\u45716  TEXT
+\f0\b0  \uc0\u50668 \u50556  \u54633 \u45768 \u45796 .\
+\
+\
+2) RLS \uc0\u51221 \u52293  (auth.uid() \u45824 \u49888  auth.jwt())\
+\
+------------------ sql ------------------\
+alter table public.scripts enable row level security;\
+\
+-- \uc0\u44277 \u53685 : JWT\u50640 \u49436  sub\u47484  \u44732 \u45236 \u45716  \u54364 \u54788 \
+--   auth.jwt()       : json\
+--   auth.jwt() ->> 'sub' : text\
+--   (Clerk JWT \uc0\u53596 \u54540 \u47551 \u50640 \u49436  sub = Clerk user id)\
+\
+-- SELECT (\uc0\u51088 \u49888 \u51032  \u44163 \u47564  \u51312 \u54924 )\
+drop policy if exists "scripts_select" on public.scripts;\
+create policy "scripts_select"\
+on public.scripts for select\
+to authenticated\
+using (\
+  user_id = (auth.jwt() ->> 'sub')\
+);\
+\
+-- INSERT (\uc0\u51088 \u44592  user_id\u47564  \u51077 \u47141  \u44032 \u45733 )\
+drop policy if exists "scripts_insert" on public.scripts;\
+create policy "scripts_insert"\
+on public.scripts for insert\
+to authenticated\
+with check (\
+  user_id = (auth.jwt() ->> 'sub')\
+);\
+\
+-- UPDATE (\uc0\u51088 \u49888  \u49548 \u50976 \u47564  \u49688 \u51221 )\
+drop policy if exists "scripts_update" on public.scripts;\
+create policy "scripts_update"\
+on public.scripts for update\
+to authenticated\
+using (\
+  user_id = (auth.jwt() ->> 'sub')\
+)\
+with check (\
+  user_id = (auth.jwt() ->> 'sub')\
+);\
+\
+-- DELETE (\uc0\u51088 \u49888  \u49548 \u50976 \u47564  \u49325 \u51228 )\
+drop policy if exists "scripts_delete" on public.scripts;\
+create policy "scripts_delete"\
+on public.scripts for delete\
+to authenticated\
+using (\
+  user_id = (auth.jwt() ->> 'sub')\
+);\
+------------------------------------------------------------------------\
+\uc0\u54252 \u51064 \u53944 : 
+\f2\b auth.uid()\uc0\u47484  \u54620  \u51460 \u46020  \u50416 \u51648  \u50506 \u49845 \u45768 \u45796 .
+\f0\b0  \uc0\u47784 \u46160  
+\f1 \cf2 auth.jwt() ->> 'sub'
+\f0 \cf2  \uc0\u47196  \u52376 \u47532 \u54633 \u45768 \u45796 .\
+\uc0\u51221 \u52293  \u51201 \u50857  \u54980 , RLS\u47484  \u51104 \u44624  \u44752 \u45796  \u53040 \u45796  \u54616 \u49892  \u54596 \u50836  \u50630 \u49845 \u45768 \u45796 . \u50948  \u47928 \u51004 \u47196  \u45934 \u50612 \u50433 \u45768 \u45796 .\
+\
+3) Clerk <-> Supabase \uc0\u53364 \u46972 \u51060 \u50616 \u53944  \u44396 \u49457 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+\cf2 \uc0\u54532 \u47200 \u53944 \u50640 \u49436  Supabase \u53364 \u46972 \u51060 \u50616 \u53944 \u47484  \u47564 \u46308  \u46412 , 
+\f2\b \cf2 Clerk \uc0\u49464 \u49496  \u53664 \u53360 \u51012  Authorization \u54756 \u45908 \u50640  \u49892 \u50612 
+\f0\b0 \cf2  \uc0\u48372 \u45236 \u50556  Supabase\u44032  JWT\u47484  \u51069 \u44256  
+\f1 auth.jwt()
+\f0 \uc0\u44032  \u52292 \u50892 \u51665 \u45768 \u45796 .\
+\
+\pard\tx860\tx1420\tx1980\tx2540\tx3100\tx3660\tx4220\tx4780\tx5340\tx5900\tx6460\tx7020\li300\sl324\slmult1\partightenfactor0
+\cf2 ---------------------------------- Ts -------------------------------------\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+\cf2 // supabaseClient.ts\
+import \{ createClient \} from '@supabase/supabase-js';\
+import \{ useAuth \} from '@clerk/clerk-react';\
+\
+export const makeSupabaseClient = (clerkGetToken: () => Promise<string | null>) => \{\
+  return createClient(import.meta.env.VITE_SUPABASE_URL!, import.meta.env.VITE_SUPABASE_ANON_KEY!, \{\
+    global: \{\
+      fetch: async (url, options = \{\}) => \{\
+        const token = await clerkGetToken(\{ template: 'supabase' \} as any); // Clerk\uc0\u50640 \u49436  \u53596 \u54540 \u47551  \u51060 \u47492  \u47582 \u52628 \u44592 \
+        const headers = new Headers(options?.headers);\
+        if (token) headers.set('Authorization', `Bearer $\{token\}`);\
+        return fetch(url, \{ ...options, headers \});\
+      \},\
+    \},\
+  \});\
+\};\
+\
+// \uc0\u49324 \u50857  \u50696 \u49884  (React \u52980 \u54252 \u45324 \u53944  \u45236 \u48512 )\
+const \{ getToken, userId \} = useAuth();\
+const supabase = useMemo(() => makeSupabaseClient(getToken), [getToken]);\
+\
+\pard\tx860\tx1420\tx1980\tx2540\tx3100\tx3660\tx4220\tx4780\tx5340\tx5900\tx6460\tx7020\li300\sl324\slmult1\partightenfactor0
+\cf2 ------------------------------------------------------------------------\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Clerk \uc0\u45824 \u49884 \u48372 \u46300 \u51032  
+\f2\b JWT \uc0\u53596 \u54540 \u47551 
+\f0\b0 \uc0\u50640 \u49436  
+\f1 \cf2 sub
+\f0 \cf2 \uc0\u44032  Clerk\u51032  user id\u47196  \u46308 \u50612 \u44032 \u46020 \u47197  \u49444 \u51221 \u54616 \u49464 \u50836 (\u44592 \u48376 \u44050 \u51060  \u48372 \u53685  \u44536 \u47111 \u49845 \u45768 \u45796 ).\
+	\'95	\uc0\u54532 \u47200 \u53944  \u53076 \u46300 \u50640 \u49436  
+\f1 \cf2 getToken(\{ template: 'supabase' \})
+\f0 \cf2  \uc0\u51032  \u53596 \u54540 \u47551 \u47749 \u51008  Clerk \u49444 \u51221 \u44284  
+\f2\b \uc0\u51068 \u52824 
+\f0\b0 \uc0\u54644 \u50556  \u54633 \u45768 \u45796 .\
+\
+4) \uc0\u51200 \u51109 /\u48520 \u47084 \u50724 \u44592 / \u49688 \u51221  \u53076 \u46300  \u50696 \u49884 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+\cf2 Lexical JSON\uc0\u51012  
+\f2\b \cf2 \uc0\u44536 \u45824 \u47196  JSONB
+\f0\b0 \cf2  \uc0\u47196  \u51200 \u51109 \u54633 \u45768 \u45796 . (\u47928 \u51088 \u50676 \u47196  \u54620  \u48264  \u45908  \u44048 \u49912 \u51648  \u47560 \u49464 \u50836 .)\
+\
+\pard\tx860\tx1420\tx1980\tx2540\tx3100\tx3660\tx4220\tx4780\tx5340\tx5900\tx6460\tx7020\li300\sl324\slmult1\partightenfactor0
+\cf2 ----------------------------------- ts -------------------------------------\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+\cf2 // save\
+async function saveScript(\{ supabase, userId, title, editorJson \}) \{\
+  const \{ data, error \} = await supabase\
+    .from('scripts')\
+    .insert(\{\
+      user_id: userId,        // TEXT\
+      title: title ?? null,\
+      content: editorJson,    // JSON \uc0\u44061 \u52404  \u44536 \u45824 \u47196 \
+    \})\
+    .select()\
+    .single();\
+\
+  if (error) throw error;\
+  return data;\
+\}\
+\
+// fetch list\
+async function listScripts(\{ supabase \}) \{\
+  const \{ data, error \} = await supabase\
+    .from('scripts')\
+    .select('id, title, updated_at')\
+    .order('updated_at', \{ ascending: false \});\
+\
+  if (error) throw error;\
+  return data;\
+\}\
+\
+// fetch one\
+async function getScript(\{ supabase, id \}) \{\
+  const \{ data, error \} = await supabase\
+    .from('scripts')\
+    .select('*')\
+    .eq('id', id)\
+    .single();\
+\
+  if (error) throw error;\
+  return data; // \{ id, user_id, title, content: \{...\} \}\
+\}\
+\
+// update\
+async function updateScript(\{ supabase, id, title, editorJson \}) \{\
+  const \{ data, error \} = await supabase\
+    .from('scripts')\
+    .update(\{\
+      title: title ?? null,\
+      content: editorJson,\
+    \})\
+    .eq('id', id)\
+    .select()\
+    .single();\
+\
+  if (error) throw error;\
+  return data;\
+\}\
+\
+\pard\tx860\tx1420\tx1980\tx2540\tx3100\tx3660\tx4220\tx4780\tx5340\tx5900\tx6460\tx7020\li300\sl324\slmult1\partightenfactor0
+\cf2 ------------------------------------------------------------------------\
+\uc0\u50640 \u47084 \u44032  \u44228 \u49549  
+\f1 \cf2 22P02
+\f0 \cf2  \uc0\u47196  \u45208 \u50724 \u47732  
+\f2\b \cf2 \uc0\u51221 \u47568 \u47196 
+\f0\b0 \cf2  \uc0\u50612 \u46360 \u44032 \u50640 \u49436  
+\f1 \cf2 auth.uid()
+\f0 \cf2 \uc0\u47484  \u52280 \u51312  \u51473 \u51064  SQL/\u51221 \u52293 /\u48624 /\u54632 \u49688 \u44032  \u45224 \u50500 \u51080 \u45716 \u51648  \u52286 \u50500 \u48372 \u49464 \u50836 .\
+(\uc0\u53945 \u55176  \u50696 \u51204 \u50640  \u51089 \u49457 \u54664 \u45912  \u51221 \u52293 , \u53944 \u47532 \u44144 , \u48624 , RPC\u50640  \u49704 \u50612  \u51080 \u51012  \u49688  \u51080 \u49845 \u45768 \u45796 .)\
+\
+6) Admin (\uc0\u51217 \u49688 /\u54869 \u51064 ) \u54540 \u47000 \u44536 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\fi260\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f1 \cf2 status text check(status in ('draft','submitted','approved','rejected')) default 'draft'
+\f0  \uc0\u44057 \u51008  \u52972 \u47100 \u51012  \u54616 \u45208  \u46160 \u44256 ,\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	\uc0\u51068 \u48152  \u49324 \u50857 \u51088  RLS\u50640 \u45716  
+\f1 \cf2 status
+\f0 \cf2  \uc0\u48320 \u44221  \u44552 \u51648 , 
+\f2\b \uc0\u44288 \u47532 \u51088  \u50669 \u54624  \u51204 \u50857  \u51221 \u52293 
+\f0\b0 \uc0\u51012  \u46384 \u47196  \u47564 \u46308 \u50612  \u48320 \u44221  \u44032 \u45733 \u54616 \u46020 \u47197  \u48516 \u47532 \u54616 \u49464 \u50836 .\
+\pard\tqr\tx500\tx660\li660\fi-400\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	\uc0\u48169 \u48277 1) \u48324 \u46020  DB Role + Service key\u47196 \u47564  \u51217 \u44540 \
+	\'95	\uc0\u48169 \u48277 2) \u44288 \u47532 \u51088  \u51204 \u50857  JWT claim(ex: 
+\f1 role: admin
+\f0 )\uc0\u51012  Clerk \u53596 \u54540 \u47551 \u50640  \u45347 \u44256 , \u51221 \u52293 \u50640 \u49436  
+\f1 auth.jwt() ->> 'role' = 'admin'
+\f0  \uc0\u44160 \u49324 \
+\
+\
+7) \uc0\u48736 \u47480  \u51216 \u44160  \u52404 \u53356 \u47532 \u49828 \u53944 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f1 \cf2 scripts.user_id
+\f0 \cf2  \uc0\u53440 \u51077 \u51060  
+\f2\b TEXT
+\f0\b0  \uc0\u51064 \u44032 \u50836 ?\
+	\'95	\uc0\u47784 \u46304  RLS\u50640 \u49436  
+\f2\b auth.uid() \uc0\u51228 \u44144 
+\f0\b0 \uc0\u54616 \u44256  
+\f2\b auth.jwt() ->> 'sub'
+\f0\b0  \uc0\u47564  \u50416 \u45208 \u50836 ?\
+	\'95	\uc0\u54532 \u47200 \u53944 \u50640 \u49436  Supabase \u50836 \u52397 \u47560 \u45796  
+\f2\b Clerk \uc0\u53664 \u53360  Authorization
+\f0\b0  \uc0\u54756 \u45908 \u44032  \u48537 \u45208 \u50836 ?\
+	\'95	\uc0\u51200 \u51109  \u49884  
+\f1 \cf2 content
+\f0 \cf2 \uc0\u50640  
+\f2\b \uc0\u44061 \u52404 (JSON)
+\f0\b0  \uc0\u47484  \u44536 \u45824 \u47196  \u45347 \u44256  \u51080 \u45208 \u50836 ? (\u47928 \u51088 \u50676 \u54868  X)\
+	\'95	\uc0\u45224 \u50500 \u51080 \u45716  RPC/\u48624 /\u51221 \u52293  \u50612 \u46360 \u44032 \u50640  
+\f1 \cf2 auth.uid()
+\f0 \cf2 \uc0\u44032  \u49704 \u50612 \u51080 \u51648  \u50506 \u45208 \u50836 ?}
