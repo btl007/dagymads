@@ -70,3 +70,38 @@ This document summarizes the migration steps performed to transition the project
 - **Clerk:** The project name in Clerk was manually updated by the user.
 
 Further steps may involve updating configuration files within the codebase to reflect any new Supabase URLs, API keys, or Clerk environment variables, if applicable.
+
+---
+
+## Architectural Pivot: Video Production Management SaaS
+
+Based on user feedback and clarification of business goals, the project has pivoted from a simple script editor to a more comprehensive SaaS platform for managing the video production lifecycle for various fitness centers ("센터").
+
+### Core Concept
+
+- The central entity is now the **Project**, which represents a single video production for a Center.
+- The Admin Dashboard is the primary interface for Dajim HQ to manage the status of all ongoing projects.
+- The workflow is designed to streamline communication and processes between Dajim's internal teams (Sales, Marketing) and the client (Center).
+
+### Key Architectural Changes
+
+1.  **Database Schema Redesign:**
+    *   A new `projects` table was created to store project-specific information like `name`, `status`, and `frame_io_link`.
+    *   The `scripts` table was altered to include a `project_id`, establishing a one-to-many relationship between projects and scripts.
+    *   Following the `forSupabase.md` guide, all `user_id` references are correctly typed as `TEXT` to match Clerk's user IDs, preventing type-mismatch errors.
+
+2.  **Backend Logic Automation:**
+    *   The `create-clerk-user` Edge Function was updated significantly.
+    *   Now, when an admin creates a new Center (user), the system automatically creates an associated initial **Project** for that user in the `projects` table.
+    *   This change provides a seamless UX for the admin (one action) while maintaining a robust and scalable 1:N database structure on the backend.
+    *   Rollback logic was added to delete the Clerk user if the subsequent project creation fails, ensuring data consistency.
+
+3.  **Admin Dashboard Overhaul:**
+    *   The dashboard was redesigned to serve two distinct purposes.
+    *   **Project Kanban View:** The top of the dashboard now features a Kanban board that displays all projects, organized into columns by their current status (e.g., '대본 필요', '대본 접수', '영상 초안'). This provides an at-a-glance overview of the entire production pipeline.
+    *   **Detailed Column View:** The original 3-column view (Center -> Scripts -> Script Detail) is preserved below the Kanban board for detailed lookup and archival purposes.
+
+4.  **Major UI/UX Refinement:**
+    *   **Unified Dark Theme:** The entire application now has a consistent and polished dark theme.
+    *   **Flexible Editor Layout:** The `scriptEditor` page was refactored to feature collapsible left and right side panels with smooth animations, allowing users to customize their workspace.
+    *   **Component Polish:** Key components like the script list (`MyScript.jsx`) were redesigned into a card-based format with clear status badges for better readability.

@@ -56,7 +56,7 @@ function App() {
   return (
     <Router>
       <Header />
-      <div className="min-h-screen mt-30">
+      <div className="min-h-screen pt-32 font-robert">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/dagymguide" element={<DagymGuide />} />

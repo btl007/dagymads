@@ -1,34 +1,28 @@
-// src/pages/AdminDashboard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
-import { useSupabase } from '../components/SupabaseProvider'; // Import useSupabase
+import { useSupabase } from '../components/SupabaseProvider';
+import AddUserForm from '../components/AddUserForm';
+import ProjectCard from '../components/ProjectCard';
 
-// Helper function to extract plain text from Lexical JSON state for a preview
+// Helper function from original component (can be moved to a utils file later)
 const extractTextFromLexical = (json) => {
-  console.log("extractTextFromLexical received json:", JSON.stringify(json, null, 2)); // Debugging line: stringify for full object
   let text = '';
   try {
     const parsedJson = typeof json === 'string' ? JSON.parse(json) : json;
-
     if (parsedJson && parsedJson.root && parsedJson.root.children) {
-      for (const rootChild of parsedJson.root.children) { // Iterate through root's children
-        // Check if it's a script-container or a standard paragraph
+      for (const rootChild of parsedJson.root.children) {
         if (rootChild.type === 'script-container' && rootChild.children) {
-          for (const containerChild of rootChild.children) { // Iterate through script-container's children
+          for (const containerChild of rootChild.children) {
             if (containerChild.children) {
               for (const innerChild of containerChild.children) {
-                if (innerChild.type === 'text') {
-                  text += innerChild.text + ' ';
-                }
+                if (innerChild.type === 'text') text += innerChild.text + ' ';
               }
             }
           }
-        } else if (rootChild.children) { // Handle standard paragraph or other nodes directly under root
+        } else if (rootChild.children) {
           for (const innerChild of rootChild.children) {
-            if (innerChild.type === 'text') {
-              text += innerChild.text + ' ';
-            }
+            if (innerChild.type === 'text') text += innerChild.text + ' ';
           }
         }
         if (text.length > 100) break;
@@ -44,301 +38,232 @@ const extractTextFromLexical = (json) => {
 const AdminDashboard = () => {
   const { user, isLoaded } = useUser();
   const navigate = useNavigate();
-  const supabase = useSupabase(); // Initialize supabase
+  const supabase = useSupabase();
 
-  const [groupedScripts, setGroupedScripts] = useState({}); // Changed to object for grouping
-  const [isLoadingScripts, setIsLoadingScripts] = useState(true);
-  const [errorScripts, setErrorScripts] = useState(null);
-  const [selectedUserId, setSelectedUserId] = useState(null); // New state for selected user in column 1
-  const [selectedScriptId, setSelectedScriptId] = useState(null); // New state for selected script in column 2
-  const [userNamesMap, setUserNamesMap] = useState({}); // New state for storing user names
-  const [selectedUserProfile, setSelectedUserProfile] = useState(null); // New state for selected user's profile
+  // State for both views
+  const [projects, setProjects] = useState([]);
+  const [groupedScripts, setGroupedScripts] = useState({});
+  const [userNamesMap, setUserNamesMap] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (!isLoaded) {
-    // Clerk user data is not yet loaded
-    return <div>Loading user data...</div>;
-  }
+  // State for Column View selection
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedScriptId, setSelectedScriptId] = useState(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
 
-  // Check if the user is an admin based on publicMetadata
-  const isAdmin = user && user.publicMetadata && user.publicMetadata.is_admin === "true";
-
-  if (!isAdmin) {
-    // If not an admin, redirect or show an access denied message
-    // For now, let's just show a message. You might want to navigate('/some-other-page')
-    // or navigate('/') here.
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="p-8 bg-white rounded-lg shadow-md text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-gray-700">You do not have permission to view this page.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-6 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Go to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  useEffect(() => {
-    if (!supabase) return;
-
-    const fetchSubmittedScripts = async () => {
-      setIsLoadingScripts(true);
-      setErrorScripts(null);
-      try {
-        const { data, error } = await supabase
-          .from('scripts')
-          .select('id, title, content, updated_at, status, user_id, submitted_at') // Select all relevant fields
-          .neq('status', 'draft') // Filter by status not equal to 'draft'
-          .order('updated_at', { ascending: false });
-
-        if (error) {
-          throw error;
-        }
-        // Group scripts by user_id
-        const scriptsByUser = data.reduce((acc, script) => {
-          if (!acc[script.user_id]) {
-            acc[script.user_id] = [];
-          }
-          acc[script.user_id].push(script);
-          return acc;
-        }, {});
-        setGroupedScripts(scriptsByUser);
-        // Automatically select the first user if available
-        if (Object.keys(scriptsByUser).length > 0) {
-          const uniqueUserIds = Object.keys(scriptsByUser);
-          setSelectedUserId(uniqueUserIds[0]);
-
-          // Fetch user details from Clerk via Edge Function
-          try {
-            const response = await fetch('https://jymezpvjdcsdxfreozry.supabase.co/functions/v1/get-clerk-user-details', { // Adjust URL if needed
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ userIds: uniqueUserIds }),
-            });
-
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            setUserNamesMap(data);
-          } catch (clerkErr) {
-            console.error('Error fetching Clerk user details:', clerkErr);
-            // Handle error, maybe set a default name or show an error message
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching submitted scripts:', err);
-        setErrorScripts(err);
-      } finally {
-        setIsLoadingScripts(false);
-      }
-    };
-
-    fetchSubmittedScripts();
-  }, [supabase]); // Dependency array includes supabase
-
-  // Effect to fetch selected user's profile details
-  useEffect(() => {
-    if (!supabase || !selectedUserId) {
-      setSelectedUserProfile(null); // Clear profile if no user selected
-      return;
-    }
-
-    const fetchUserProfile = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select('*') // Select all profile fields
-          .eq('user_id', selectedUserId)
-          .single();
-
-        if (error && error.code !== 'PGRST116') { // PGRST116 means "no rows found"
-          throw error;
-        }
-        setSelectedUserProfile(data);
-      } catch (err) {
-        console.error('Error fetching user profile:', err);
-        setSelectedUserProfile(null); // Clear profile on error
-      }
-    };
-
-    fetchUserProfile();
-  }, [supabase, selectedUserId]); // Re-run when supabase or selectedUserId changes
-
-  const handleStatusChange = async (scriptId, newStatus) => {
-    if (!supabase) return;
-    if (!window.confirm(`대본의 상태를 '${newStatus}'(으)로 변경하시겠습니까?`)) {
-      return;
-    }
-
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const { error } = await supabase
-        .from('scripts')
-        .update({ status: newStatus, updated_at: new Date() })
-        .eq('id', scriptId);
+      // 1. Fetch all projects
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (projectsError) throw projectsError;
+      setProjects(projectsData || []);
 
-      if (error) {
-        throw error;
-      }
-      alert(`대본 상태가 '${newStatus}'(으)로 변경되었습니다.`);
-      // Re-fetch scripts to update the UI
-      const { data, error: fetchError } = await supabase
+      // 2. Fetch all non-draft scripts
+      const { data: scriptsData, error: scriptsError } = await supabase
         .from('scripts')
         .select('id, title, content, updated_at, status, user_id, submitted_at')
-        .neq('status', 'draft') // Filter by status not equal to 'draft'
-        .order('updated_at', { ascending: false });
+        .neq('status', 'draft');
+      if (scriptsError) throw scriptsError;
 
-      if (fetchError) {
-        throw fetchError;
-      }
-      // Re-group scripts by user_id after re-fetch
-      const scriptsByUser = data.reduce((acc, script) => {
-        if (!acc[script.user_id]) {
-          acc[script.user_id] = [];
-        }
+      // 3. Group scripts by user for Column View
+      const scriptsByUser = (scriptsData || []).reduce((acc, script) => {
+        if (!acc[script.user_id]) acc[script.user_id] = [];
         acc[script.user_id].push(script);
         return acc;
       }, {});
       setGroupedScripts(scriptsByUser);
+
+      // 4. Aggregate all unique user IDs and fetch their names
+      const projectUserIds = projectsData.map(p => p.user_id);
+      const scriptUserIds = (scriptsData || []).map(s => s.user_id);
+      const uniqueUserIds = [...new Set([...projectUserIds, ...scriptUserIds])];
+
+      if (uniqueUserIds.length > 0) {
+        const response = await fetch('https://jymezpvjdcsdxfreozry.supabase.co/functions/v1/get-clerk-user-details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userIds: uniqueUserIds }),
+        });
+        if (!response.ok) throw new Error('Failed to fetch user details');
+        const usersData = await response.json();
+        setUserNamesMap(usersData);
+
+        // Set initial selection for column view
+        if (Object.keys(scriptsByUser).length > 0) {
+          setSelectedUserId(Object.keys(scriptsByUser)[0]);
+        }
+      }
     } catch (err) {
-      console.error('Error updating script status:', err);
-      alert(`상태 변경에 실패했습니다: ${err.message}`);
+      console.error('Error fetching data:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    if (supabase && user) {
+      fetchData();
+    }
+  }, [supabase, user, fetchData]);
+
+  // Effect for Column View: fetch user profile when a user is selected
+  useEffect(() => {
+    if (!supabase || !selectedUserId) {
+      setSelectedUserProfile(null);
+      return;
+    }
+    const fetchUserProfile = async () => {
+      const { data, error } = await supabase.from('user_profiles').select('*').eq('user_id', selectedUserId).single();
+      if (error && error.code !== 'PGRST116') console.error('Error fetching profile:', error);
+      else setSelectedUserProfile(data);
+    };
+    fetchUserProfile();
+  }, [supabase, selectedUserId]);
+
+  // Handler for Kanban View
+  const handleUpdateProjectStatus = async (projectId, newStatus) => {
+    const { error } = await supabase.from('projects').update({ status: newStatus }).eq('id', projectId);
+    if (error) alert(`프로젝트 상태 업데이트 실패: ${error.message}`);
+    else {
+      alert('프로젝트 상태가 업데이트되었습니다!');
+      fetchData(); // Refresh all data
     }
   };
 
-  // If the user is an admin, render the dashboard content
+  // Handler for Column View
+  const handleUpdateScriptStatus = async (scriptId, newStatus) => {
+    const { error } = await supabase.from('scripts').update({ status: newStatus }).eq('id', scriptId);
+    if (error) alert(`대본 상태 업데이트 실패: ${error.message}`);
+    else {
+      alert('대본 상태가 업데이트되었습니다!');
+      fetchData(); // Refresh all data
+    }
+  };
+  
+  const projectsByStatus = projects.reduce((acc, project) => {
+    const status = project.status || 'script_needed';
+    if (!acc[status]) acc[status] = [];
+    acc[status].push(project);
+    return acc;
+  }, {});
+
+  const kanbanColumns = [
+    { id: 'script_needed', title: '대본 필요' },
+    { id: 'script_submitted', title: '대본 접수' },
+    { id: 'video_draft_1', title: '영상 초안' },
+    { id: 'feedback_complete', title: '피드백 완료' },
+    { id: 'project_complete', title: '최종 완료' },
+  ];
+
+  if (!isLoaded) return <div>Loading...</div>;
+  if (!user || !user.publicMetadata.is_admin) return <div>Access Denied.</div>;
+
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-      <p className="text-lg">Welcome, Admin {user.firstName || user.username}!</p>
+      {/* Kanban View */}
+      <h1 className="text-3xl font-bold mb-2 text-white">프로젝트 칸반 보드</h1>
+      <p className="text-lg text-slate-400 mb-8">전체 영상 제작 과정을 관리합니다.</p>
+      {isLoading ? (
+        <p className="text-slate-300">프로젝트 로딩 중...</p>
+      ) : error ? (
+        <p className="text-red-400">오류: {error}</p>
+      ) : (
+        <div className="flex space-x-4 overflow-x-auto pb-4">
+          {kanbanColumns.map(column => (
+            <div key={column.id} className="bg-slate-900 w-80 flex-shrink-0 rounded-lg p-4">
+              <h3 className="text-lg font-bold text-white mb-4">{column.title}</h3>
+              <div className="space-y-4 h-full overflow-y-auto">
+                {(projectsByStatus[column.id] || []).map(project => (
+                  <ProjectCard 
+                    key={project.id} 
+                    project={project} 
+                    userName={userNamesMap[project.user_id]?.username || project.user_id}
+                    onUpdateStatus={handleUpdateProjectStatus}
+                  />
+                ))}
+                {(!projectsByStatus[column.id] || projectsByStatus[column.id].length === 0) && (
+                  <div className="text-center py-4"><p className="text-sm text-slate-500">해당 프로젝트 없음</p></div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      <div className="mt-8 p-6 bg-white rounded-lg shadow-md flex h-[70vh]"> {/* Added flex and height for columns */}
-        {isLoadingScripts ? (
-          <p>로딩 중...</p>
-        ) : errorScripts ? (
-          <p className="text-red-500">오류가 발생했습니다: {errorScripts.message}</p>
+      <hr className="my-12 border-slate-700" />
+
+      {/* Column View */}
+      <h1 className="text-3xl font-bold mb-2 text-white">센터별 상세 조회</h1>
+      <p className="text-lg text-slate-400 mb-8">특정 센터의 대본 목록을 확인하고 관리합니다.</p>
+      <div className="mt-8 p-6 bg-slate-900 border border-slate-700 rounded-lg shadow-lg flex h-[70vh]">
+        {isLoading ? (
+          <p className="text-slate-300">로딩 중...</p>
+        ) : error ? (
+          <p className="text-red-400">오류: {error}</p>
         ) : Object.keys(groupedScripts).length === 0 ? (
-          <p>접수된 대본이 없습니다.</p>
+          <p className="text-slate-300">접수된 대본이 없습니다.</p>
         ) : (
           <>
-            {/* Column 1: User List */}
-            <div className="w-1/3 border-r border-gray-200 p-4 overflow-y-auto">
-              <h2 className="text-xl text-black font-semibold mb-4">사용자</h2>
+            <div className="w-1/3 border-r border-slate-700 p-4 overflow-y-auto">
+              <h2 className="text-xl text-white font-semibold mb-4">센터 목록</h2>
               <ul className="space-y-2">
                 {Object.keys(groupedScripts).map((userId) => (
-                  <li
-                    key={userId}
-                    onClick={() => {
-                      setSelectedUserId(userId);
-                      setSelectedScriptId(null); // Reset selected script when user changes
-                    }}
-                    className={`p-2 cursor-pointer rounded-md ${selectedUserId === userId ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100'}`}
-                  >
-                    {userNamesMap[userId]?.firstName || userNamesMap[userId]?.username || userId}
+                  <li key={userId} onClick={() => setSelectedUserId(userId)} className={`p-2 cursor-pointer rounded-md ${selectedUserId === userId ? 'bg-blue-900 bg-opacity-50 text-blue-200' : 'hover:bg-slate-800'}`}>
+                    {userNamesMap[userId]?.username || userId}
                   </li>
                 ))}
               </ul>
             </div>
-
-            {/* Column 2: Scripts for Selected User */}
-            <div className="w-1/3 border-r border-gray-200 p-4 overflow-y-auto">
-              <h2 className="text-xl text-black font-semibold mb-4">대본 제목</h2>
-              {selectedUserId && (
-                <div className="mb-4 p-3 bg-gray-100 rounded-md">
-                  <h3 className="font-bold text-lg text-black">
-                    {userNamesMap[selectedUserId]?.firstName || userNamesMap[selectedUserId]?.username || selectedUserId}
-                  </h3>
-                  {selectedUserProfile && (
-                    <>
-                      <p className="text-sm text-gray-700">전화번호: {selectedUserProfile.phone_number || '없음'}</p>
-                      <p className="text-sm text-gray-700">담당자 이름: {selectedUserProfile.member_name || '없음'}</p>
-                    </>
-                  )}
+            <div className="w-1/3 border-r border-slate-700 p-4 overflow-y-auto">
+              <h2 className="text-xl text-white font-semibold mb-4">대본 목록</h2>
+              {selectedUserId && selectedUserProfile && (
+                <div className="mb-4 p-3 bg-slate-800 rounded-md">
+                  <h3 className="font-bold text-lg text-white">{userNamesMap[selectedUserId]?.username || selectedUserId}</h3>
+                  <p className="text-sm text-slate-300">담당자: {selectedUserProfile.member_name || '없음'}</p>
+                  <p className="text-sm text-slate-300">연락처: {selectedUserProfile.phone_number || '없음'}</p>
                 </div>
               )}
               {selectedUserId && groupedScripts[selectedUserId] && (
                 <ul className="space-y-2">
                   {groupedScripts[selectedUserId].map((script) => (
-                    <li
-                      key={script.id}
-                      onClick={() => setSelectedScriptId(script.id)}
-                      className={`p-2 cursor-pointer rounded-md ${selectedScriptId === script.id ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100'}`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-bold text-black text-base">{script.title}</h3>
-                        {script.submitted_at && (
-                          <div
-                            className="px-2 py-0.5 bg-blue-600 text-white text-xs font-semibold rounded-lg"
-                            title={`대본 접수일: ${new Date(script.submitted_at).toLocaleString()}`}
-                          >
-                            D+ {Math.floor((new Date() - new Date(script.submitted_at)) / (1000 * 60 * 60 * 24))} 일
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        상태: <span className="font-semibold">{script.status}</span> | 수정: {new Date(script.updated_at).toLocaleString()}
-                      </p>
+                    <li key={script.id} onClick={() => setSelectedScriptId(script.id)} className={`p-2 cursor-pointer rounded-md ${selectedScriptId === script.id ? 'bg-blue-900 bg-opacity-50 text-blue-200' : 'hover:bg-slate-800'}`}>
+                      <h3 className="font-bold text-white text-base">{script.title}</h3>
+                      <p className="text-xs text-slate-400 mt-1">상태: {script.status} | 수정: {new Date(script.updated_at).toLocaleString()}</p>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-
-            {/* Column 3: Content of Selected Script */}
             <div className="w-1/3 p-4 overflow-y-auto">
-              <h2 className="text-xl text-black font-semibold mb-4">대본 내용</h2>
-              {selectedScriptId && groupedScripts[selectedUserId] && (
-                (() => {
-                  const selectedScript = groupedScripts[selectedUserId].find(s => s.id === selectedScriptId);
-                  if (!selectedScript) return <p>대본을 선택해주세요.</p>;
-
+              <h2 className="text-xl text-white font-semibold mb-4">대본 내용</h2>
+              {selectedScriptId ? (() => {
+                  const script = groupedScripts[selectedUserId]?.find(s => s.id === selectedScriptId);
+                  if (!script) return <p>대본을 선택해주세요.</p>;
                   return (
                     <div>
-                      <h3 className="font-bold text-black text-lg mb-2">{selectedScript.title}</h3>
-                      <p className="text-gray-700 mb-4">
-                        {extractTextFromLexical(selectedScript.content) || '(내용 없음)'}
-                      </p>
+                      <h3 className="font-bold text-white text-lg mb-2">{script.title}</h3>
+                      <p className="text-slate-300 mb-4">{extractTextFromLexical(script.content) || '(내용 없음)'}</p>
                       <div className="mt-4 flex space-x-2">
-                        <button
-                          onClick={() => handleStatusChange(selectedScript.id, 'under_review')}
-                          className={`px-3 py-1 text-sm rounded ${selectedScript.status === 'under_review' ? 'bg-yellow-700 text-white cursor-not-allowed' : 'bg-yellow-500 hover:bg-yellow-600 text-white'}`}
-                          disabled={selectedScript.status === 'under_review'}
-                        >
-                          검토 중
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(selectedScript.id, 'approved')}
-                          className={`px-3 py-1 text-sm rounded ${selectedScript.status === 'approved' ? 'bg-green-700 text-white cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
-                          disabled={selectedScript.status === 'approved'}
-                        >
-                          승인
-                        </button>
+                        <button onClick={() => handleUpdateScriptStatus(script.id, 'under_review')} className={`px-3 py-1 text-sm rounded bg-yellow-500 hover:bg-yellow-600 text-white`}>검토 중</button>
+                        <button onClick={() => handleUpdateScriptStatus(script.id, 'approved')} className={`px-3 py-1 text-sm rounded bg-green-500 hover:bg-green-600 text-white`}>승인</button>
                       </div>
                     </div>
                   );
-                })()
-              )}
-              {!selectedScriptId && <p>대본을 선택해주세요.</p>}
+                })() : <p>대본을 선택해주세요.</p>}
             </div>
           </>
         )}
       </div>
 
-      <div className="mt-8 p-6 bg-white text-black rounded-lg shadow-md">
-        <h2 className="text-2xl font-semibold mb-4">Admin Tools</h2>
-        <ul className="list-disc list-inside">
-          <li>Manage Users</li>
-          <li>View System Logs</li>
-          <li>Configure Settings</li>
-          {/* Add more admin-specific tools here */}
-        </ul>
+      <div className="mt-12">
+        <AddUserForm />
       </div>
     </div>
   );

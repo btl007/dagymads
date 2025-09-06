@@ -5,7 +5,8 @@ import { useSupabase } from '../components/SupabaseProvider';
 import { useUser } from '@clerk/clerk-react';
 import Editor from '../components/Editor';
 import MyScript from '../components/MyScript';
-import { BookUser } from 'lucide-react';
+import { BookUser, X, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import * as Lexical from 'lexical'; // Changed import
 import { $createScriptContainerNode } from '../nodes/ScriptContainerNode'; // Keep this separate
 
@@ -85,7 +86,7 @@ const SaveButton = ({ title, scriptId, onSaveSuccess, currentStatus }) => {
   };
 
   return (
-    <div className="absolute top-4 right-4 flex space-x-2">
+    <div className="absolute top-4 right-4 flex space-x-2 z-10">
       <button
         onClick={handleSave}
         className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -106,6 +107,7 @@ const SaveButton = ({ title, scriptId, onSaveSuccess, currentStatus }) => {
 };
 
 // --- ScriptEditor Page ---
+// --- ScriptEditor Page ---
 export default function ScriptEditor() {
   const { scriptId } = useParams();
   const navigate = useNavigate();
@@ -113,10 +115,29 @@ export default function ScriptEditor() {
   const [editorInstance, setEditorInstance] = useState(null);
   const [title, setTitle] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSampleScriptVisible, setIsSampleScriptVisible] = useState(true); // Left panel is open by default
   const [isMyScriptVisible, setIsMyScriptVisible] = useState(false);
-  const [currentScriptStatus, setCurrentScriptStatus] = useState('draft'); // New state for script status
-  const [isDirty, setIsDirty] = useState(false); // State to track unsaved changes
-  const initialContentRef = useRef(null); // Ref to store the initial content
+  const [currentScriptStatus, setCurrentScriptStatus] = useState('draft');
+  const [isDirty, setIsDirty] = useState(false);
+  const initialContentRef = useRef(null);
+  const myScriptPanelRef = useRef(null); // Create a ref for the panel
+
+  // Effect to handle clicks outside the MyScript panel
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (myScriptPanelRef.current && !myScriptPanelRef.current.contains(event.target)) {
+        setIsMyScriptVisible(false);
+      }
+    }
+    // Bind the event listener
+    if (isMyScriptVisible) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      // Unbind the event listener on clean up
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isMyScriptVisible]);
 
   useEffect(() => {
     if (!editorInstance || !supabase) return;
@@ -125,28 +146,28 @@ export default function ScriptEditor() {
       setIsLoading(true);
       try {
         let initialContentJson;
-        let scriptStatus = 'draft'; // Default status
+        let scriptStatus = 'draft';
         if (scriptId) {
           const { data, error } = await supabase
             .from('scripts')
-            .select('title, content, status') // Select status as well
+            .select('title, content, status')
             .eq('id', scriptId)
             .single();
           if (error) throw error;
           if (data) {
             setTitle(data.title);
             initialContentJson = data.content;
-            scriptStatus = data.status || 'draft'; // Use fetched status or default to 'draft'
+            scriptStatus = data.status || 'draft';
           }
         } else {
           setTitle('제목없는 대본');
           initialContentJson = {root: {children: [{type: 'paragraph', children: []}], direction: null, format: '', indent: 0, type: 'root', version: 1}};
         }
-        setCurrentScriptStatus(scriptStatus); // Set the status state
+        setCurrentScriptStatus(scriptStatus);
         const editorState = editorInstance.parseEditorState(initialContentJson);
         editorInstance.setEditorState(editorState);
         initialContentRef.current = JSON.stringify(initialContentJson);
-        setIsDirty(false); // Reset dirty state on load
+        setIsDirty(false);
       } catch (e) {
         console.error("Failed to initialize editor:", e);
         setTitle("스크립트 불러오기 실패");
@@ -158,21 +179,17 @@ export default function ScriptEditor() {
     initializeEditor();
   }, [scriptId, editorInstance, supabase]);
 
-  // Called when the editor content changes
   const handleOnChange = (editorState) => {
     if (!initialContentRef.current) return;
     const currentContent = JSON.stringify(editorState.toJSON());
-    // Set dirty flag if content has changed from the initial state
     setIsDirty(currentContent !== initialContentRef.current);
   };
 
-  // Called when a save is successful
   const handleSaveSuccess = (savedContent) => {
     initialContentRef.current = savedContent;
     setIsDirty(false);
   };
 
-  // Handles navigation away from the editor
   const handleNavigate = useCallback((targetId) => {
     if (isDirty) {
       if (window.confirm('저장되지 않은 변경사항이 있습니다. 정말로 이동하시겠습니까?')) {
@@ -186,17 +203,17 @@ export default function ScriptEditor() {
   const insertNewScriptBlock = (content) => {
     if (!editorInstance) return;
     editorInstance.update(() => {
-      const containerNode = $createScriptContainerNode(); // Correct: No Lexical. prefix
-      const paragraphNode = Lexical.$createParagraphNode(); // Correct: From Lexical namespace
-      const textNode = Lexical.$createTextNode(content); // Correct: From Lexical namespace
+      const containerNode = $createScriptContainerNode();
+      const paragraphNode = Lexical.$createParagraphNode();
+      const textNode = Lexical.$createTextNode(content);
       paragraphNode.append(textNode);
       containerNode.append(paragraphNode);
 
-      const selection = Lexical.$getSelection(); // Correct: From Lexical namespace
+      const selection = Lexical.$getSelection();
       if (Lexical.$isRangeSelection(selection)) {
         selection.insertNodes([containerNode]);
       } else {
-        const root = Lexical.$getRoot(); // Correct: From Lexical namespace
+        const root = Lexical.$getRoot();
         root.append(containerNode);
       }
       
@@ -204,35 +221,60 @@ export default function ScriptEditor() {
     });
   };
 
-
-
   return (
     <section className="w-full flex bg-[rgb(25,25,25)] min-h-screen">
-      <div className="w-1/4 bg-slate-900 p-4 space-y-4 overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-2 text-white">예시 대본</h2>
-        {sampleScripts.map((script) => (
-          <button
-            key={script.id}
-            onClick={() => insertNewScriptBlock(script.content)}
-            className="w-full text-left px-4 py-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition"
+      <AnimatePresence>
+        {isSampleScriptVisible && (
+          <motion.div
+            initial={{ x: '-100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '-100%', opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="w-80 bg-slate-900 p-4 space-y-4 overflow-y-auto border-r border-slate-700"
           >
-            <h4 className="text-lg font-bold text-white">{script.title}</h4>
-            <span className="px-2 py-1 text-xs bg-blue-500 text-white rounded-lg">{script.props}</span>
-            <p className="text-base text-gray-300">{script.content}</p>
-          </button>
-        ))}
-      </div>
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-white">예시 대본</h2>
+              <button 
+                onClick={() => setIsSampleScriptVisible(false)}
+                className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded-full"
+              >
+                <PanelLeftClose size={20} />
+              </button>
+            </div>
+            {sampleScripts.map((script) => (
+              <button
+                key={script.id}
+                onClick={() => insertNewScriptBlock(script.content)}
+                className="w-full text-left px-4 py-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition"
+              >
+                <h4 className="text-lg font-bold text-white">{script.title}</h4>
+                <span className="px-2 py-1 text-xs bg-blue-500 text-white rounded-lg">{script.props}</span>
+                <p className="text-base text-gray-300">{script.content}</p>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="flex-1 p-10 max-w-4xl mx-auto relative">
+      <div className="flex-1 p-10 relative">
         {isLoading && (
           <div className="absolute inset-0 flex justify-center items-center bg-[rgb(25,25,25)] z-30">
             <p className="text-white">로딩 중...</p>
           </div>
         )}
 
-        <div className="absolute top-4 right-28 flex space-x-2">
+        <div className="absolute top-4 left-4 flex items-center space-x-4 z-10">
+          {!isSampleScriptVisible && (
+            <button
+                onClick={() => setIsSampleScriptVisible(true)}
+                className="p-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-full transition-all duration-300"
+                title="예시 대본 보기"
+            >
+                <PanelLeftOpen size={20} />
+            </button>
+          )}
           <button
-              onClick={() => setIsMyScriptVisible(!isMyScriptVisible)}
+              onClick={() => setIsMyScriptVisible(true)}
               className="p-2 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-full transition-all duration-300"
               title="내 대본 목록"
           >
@@ -240,35 +282,48 @@ export default function ScriptEditor() {
           </button>
         </div>
 
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            setIsDirty(true); // Also mark as dirty when title changes
-          }}
-          placeholder="대본 제목을 입력하세요"
-          className="text-3xl font-bold bg-transparent border-b-2 border-gray-700 focus:border-blue-500 outline-none w-full mb-6 text-white"
-        />
-        
-        <Editor
-          onReady={setEditorInstance}
-          onChange={handleOnChange}
-          customChildren={!isLoading && <SaveButton title={title} scriptId={scriptId} onSaveSuccess={handleSaveSuccess} currentStatus={currentScriptStatus} />}
-        />
-        />
-
-        {isMyScriptVisible && (
-            <div className="absolute top-0 right-0 h-full w-96 bg-gray-900 shadow-lg z-20 p-4 overflow-y-auto transition-all duration-300 ease-in-out">
-                <button 
-                    onClick={() => setIsMyScriptVisible(false)}
-                    className="absolute top-3 right-3 text-white hover:scale-125 transition-transform"
-                >&times;</button>
-                <h2 className="text-xl font-bold text-white mb-4">내 대본</h2>
-                <MyScript handleNavigate={handleNavigate} />
-            </div>
-        )}
+        <div className="max-w-4xl mx-auto">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setIsDirty(true);
+            }}
+            placeholder="대본 제목을 입력하세요"
+            className="text-3xl font-bold bg-transparent border-b-2 border-gray-700 focus:border-blue-500 outline-none w-full mb-6 text-white"
+          />
+          
+          <Editor
+            onReady={setEditorInstance}
+            onChange={handleOnChange}
+            customChildren={!isLoading && <SaveButton title={title} scriptId={scriptId} onSaveSuccess={handleSaveSuccess} currentStatus={currentScriptStatus} />}
+          />
+        </div>
       </div>
+
+      <AnimatePresence>
+        {isMyScriptVisible && (
+            <motion.div 
+                ref={myScriptPanelRef}
+                initial={{ x: '100%', opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: '100%', opacity: 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="w-96 bg-slate-900 shadow-lg z-40 p-4 overflow-y-auto border-l border-slate-700">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-white">내 대본</h2>
+                  <button 
+                      onClick={() => setIsMyScriptVisible(false)}
+                      className="p-1 text-gray-500 hover:text-white hover:bg-slate-700 rounded-full transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <MyScript handleNavigate={handleNavigate} />
+            </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

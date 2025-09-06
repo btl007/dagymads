@@ -4,6 +4,7 @@ import { useSupabase } from './SupabaseProvider';
 import { PlusCircle } from 'lucide-react';
 
 // Helper function to extract plain text from Lexical JSON state for a preview
+// Helper function to extract plain text from Lexical JSON state for a preview
 const extractTextFromLexical = (json) => {
   let text = '';
   try {
@@ -26,6 +27,23 @@ const extractTextFromLexical = (json) => {
   return text.trim();
 };
 
+// Status Badge Component
+const StatusBadge = ({ status }) => {
+  const statusMap = {
+    draft: { text: '임시저장', className: 'bg-slate-600 text-slate-200' },
+    submitted: { text: '접수됨', className: 'bg-blue-600 text-blue-100' },
+    under_review: { text: '검토 중', className: 'bg-yellow-500 text-yellow-100' },
+    approved: { text: '승인됨', className: 'bg-green-500 text-green-100' },
+  };
+
+  const currentStatus = statusMap[status] || statusMap.draft;
+
+  return (
+    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${currentStatus.className}`}>
+      {currentStatus.text}
+    </span>
+  );
+};
 
 const MyScript = ({ handleNavigate }) => {
   const supabase = useSupabase();
@@ -42,7 +60,7 @@ const MyScript = ({ handleNavigate }) => {
       try {
         const { data, error } = await supabase
           .from('scripts')
-          .select('id, title, content, updated_at, status') // Select status as well
+          .select('id, title, content, updated_at, status')
           .order('updated_at', { ascending: false });
 
         if (error) {
@@ -100,25 +118,28 @@ const MyScript = ({ handleNavigate }) => {
           </Link>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-4">
           {scripts.map(script => {
             const preview = extractTextFromLexical(script.content).substring(0, 80);
             return (
-              <li key={script.id} className="p-4 border border-gray-700 rounded-lg bg-gray-800 text-white">
-                <h4 className="font-bold text-lg text-blue-400 truncate">{script.title}</h4>
-                <p className="text-sm text-gray-300 my-2 truncate">
+              <li key={script.id} className="p-4 rounded-lg bg-slate-800 border border-slate-700 text-white shadow-md transition-all hover:border-slate-600">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-bold text-base text-slate-200 truncate w-48">{script.title}</h4>
+                  <StatusBadge status={script.status || 'draft'} />
+                </div>
+                <p className="text-sm text-slate-400 my-2 h-10 overflow-hidden">
                   {preview || '(내용 없음)'}
                 </p>
-                <div className="flex justify-between items-center mt-3">
-                    <p className="text-xs text-gray-500">
-                        상태: {script.status || 'draft'} | 수정: {new Date(script.updated_at).toLocaleString()}
+                <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-700">
+                    <p className="text-xs text-slate-500">
+                      수정: {new Date(script.updated_at).toLocaleDateString()}
                     </p>
                     <div className="flex items-center space-x-2">
-                        <button onClick={() => handleNavigate(script.id)} className="px-3 py-1 text-sm bg-gray-600 hover:bg-gray-500 rounded-md">
-                            수정하기
+                        <button onClick={() => handleNavigate(script.id)} className="px-3 py-1 text-sm bg-slate-600 hover:bg-slate-500 rounded-md transition-colors">
+                            수정
                         </button>
-                        <button onClick={() => handleDelete(script.id)} className="px-3 py-1 text-sm bg-red-700 hover:bg-red-600 rounded-md">
-                            삭제하기
+                        <button onClick={() => handleDelete(script.id)} className="px-3 py-1 text-sm bg-red-800 hover:bg-red-700 rounded-md transition-colors">
+                            삭제
                         </button>
                     </div>
                 </div>
