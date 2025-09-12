@@ -3,6 +3,7 @@ import { useUser } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { useSupabase } from '../components/SupabaseProvider';
 import AddUserForm from '../components/AddUserForm';
+import AddProjectForm from '../components/AddProjectForm';
 import ProjectCard from '../components/ProjectCard';
 
 // Helper function from original component (can be moved to a utils file later)
@@ -46,11 +47,43 @@ const AdminDashboard = () => {
   const [userNamesMap, setUserNamesMap] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userProfiles, setUserProfiles] = useState([]);
 
   // State for Column View selection
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedScriptId, setSelectedScriptId] = useState(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+
+  const fetchUserProfiles = useCallback(async () => {
+    if (!supabase) return;
+    try {
+      // Fetch profiles from Supabase
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('user_id, member_name')
+        .order('member_name', { ascending: true });
+      if (profilesError) throw profilesError;
+
+      // Fetch all users from Clerk to get usernames
+      const { data: clerkUsersData, error: clerkUsersError } = await supabase.functions.invoke('get-all-clerk-users', {
+        method: 'GET'
+      });
+      if (clerkUsersError) throw clerkUsersError;
+
+      // Create a map of userId -> username
+      const clerkUsernameMap = new Map(clerkUsersData.map(u => [u.id, u.username]));
+
+      // Combine profile data with clerk username
+      const combinedProfiles = profilesData.map(profile => ({
+        ...profile,
+        username: clerkUsernameMap.get(profile.user_id) || profile.member_name, // Fallback to member_name
+      }));
+
+      setUserProfiles(combinedProfiles || []);
+    } catch (err) {
+      console.error('Error fetching user profiles:', err);
+    }
+  }, [supabase]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -110,8 +143,9 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (supabase && user) {
       fetchData();
+      fetchUserProfiles();
     }
-  }, [supabase, user, fetchData]);
+  }, [supabase, user, fetchData, fetchUserProfiles]);
 
   // Effect for Column View: fetch user profile when a user is selected
   useEffect(() => {
@@ -127,13 +161,18 @@ const AdminDashboard = () => {
     fetchUserProfile();
   }, [supabase, selectedUserId]);
 
+  const handleDataRefresh = () => {
+    fetchData();
+    fetchUserProfiles();
+  };
+
   // Handler for Kanban View
   const handleUpdateProjectStatus = async (projectId, newStatus) => {
     const { error } = await supabase.from('projects').update({ status: newStatus }).eq('id', projectId);
     if (error) alert(`프로젝트 상태 업데이트 실패: ${error.message}`);
     else {
       alert('프로젝트 상태가 업데이트되었습니다!');
-      fetchData(); // Refresh all data
+      handleDataRefresh();
     }
   };
 
@@ -143,7 +182,7 @@ const AdminDashboard = () => {
     if (error) alert(`대본 상태 업데이트 실패: ${error.message}`);
     else {
       alert('대본 상태가 업데이트되었습니다!');
-      fetchData(); // Refresh all data
+      handleDataRefresh();
     }
   };
   
@@ -162,7 +201,9 @@ const AdminDashboard = () => {
     { id: 'project_complete', title: '최종 완료' },
   ];
 
-  if (!isLoaded) return <div>Loading...</div>;
+  const statusMap = new Map(kanbanColumns.map(c => [c.id, c.title]));
+
+  if (!isLoaded || !supabase) return <div>Loading...</div>;
   if (!user || !user.publicMetadata.is_admin) return <div>Access Denied.</div>;
 
   return (
@@ -186,6 +227,8 @@ const AdminDashboard = () => {
                     project={project} 
                     userName={userNamesMap[project.user_id]?.username || project.user_id}
                     onUpdateStatus={handleUpdateProjectStatus}
+                    statusDisplayName={statusMap.get(project.status) || project.status}
+                    onCenterClick={setSelectedUserId} // Pass the setter function
                   />
                 ))}
                 {(!projectsByStatus[column.id] || projectsByStatus[column.id].length === 0) && (
@@ -207,30 +250,38 @@ const AdminDashboard = () => {
           <p className="text-slate-300">로딩 중...</p>
         ) : error ? (
           <p className="text-red-400">오류: {error}</p>
-        ) : Object.keys(groupedScripts).length === 0 ? (
-          <p className="text-slate-300">접수된 대본이 없습니다.</p>
         ) : (
           <>
-            <div className="w-1/3 border-r border-slate-700 p-4 overflow-y-auto">
-              <h2 className="text-xl text-white font-semibold mb-4">센터 목록</h2>
+            {/* Column 1: All Centers */}
+            <div className="w-1/6 border-r border-slate-700 p-4 overflow-y-auto">
+              <h2 className="text-xl text-white font-semibold mb-4">전체 센터</h2>
               <ul className="space-y-2">
-                {Object.keys(groupedScripts).map((userId) => (
-                  <li key={userId} onClick={() => setSelectedUserId(userId)} className={`p-2 cursor-pointer rounded-md ${selectedUserId === userId ? 'bg-blue-900 bg-opacity-50 text-blue-200' : 'hover:bg-slate-800'}`}>
-                    {userNamesMap[userId]?.username || userId}
+                {userProfiles.map((profile) => (
+                  <li key={profile.user_id} onClick={() => setSelectedUserId(profile.user_id)} className={`p-2 cursor-pointer rounded-md ${selectedUserId === profile.user_id ? 'bg-blue-900 bg-opacity-50 text-blue-200' : 'hover:bg-slate-800'}`}>
+                    {profile.username || profile.user_id}
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="w-1/3 border-r border-slate-700 p-4 overflow-y-auto">
-              <h2 className="text-xl text-white font-semibold mb-4">대본 목록</h2>
-              {selectedUserId && selectedUserProfile && (
-                <div className="mb-4 p-3 bg-slate-800 rounded-md">
-                  <h3 className="font-bold text-lg text-white">{userNamesMap[selectedUserId]?.username || selectedUserId}</h3>
-                  <p className="text-sm text-slate-300">담당자: {selectedUserProfile.member_name || '없음'}</p>
+
+            {/* Column 2: Center Details */}
+            <div className="w-1/6 border-r border-slate-700 p-4 overflow-y-auto">
+              <h2 className="text-xl text-white font-semibold mb-4">센터 정보</h2>
+              {selectedUserProfile ? (
+                <div className="p-3 bg-slate-800 rounded-md">
+                  <h3 className="font-bold text-lg text-white">{selectedUserProfile.member_name}</h3>
+                  <p className="text-sm text-slate-300 mt-2">담당자: {userNamesMap[selectedUserId]?.username || selectedUserId}</p>
                   <p className="text-sm text-slate-300">연락처: {selectedUserProfile.phone_number || '없음'}</p>
                 </div>
+              ) : (
+                <p className="text-slate-400 text-sm">센터를 선택하세요.</p>
               )}
-              {selectedUserId && groupedScripts[selectedUserId] && (
+            </div>
+
+            {/* Column 3: Submitted Scripts */}
+            <div className="w-1/3 border-r border-slate-700 p-4 overflow-y-auto">
+              <h2 className="text-xl text-white font-semibold mb-4">접수된 대본</h2>
+              {selectedUserId && groupedScripts[selectedUserId] ? (
                 <ul className="space-y-2">
                   {groupedScripts[selectedUserId].map((script) => (
                     <li key={script.id} onClick={() => setSelectedScriptId(script.id)} className={`p-2 cursor-pointer rounded-md ${selectedScriptId === script.id ? 'bg-blue-900 bg-opacity-50 text-blue-200' : 'hover:bg-slate-800'}`}>
@@ -239,8 +290,12 @@ const AdminDashboard = () => {
                     </li>
                   ))}
                 </ul>
+              ) : (
+                <p className="text-slate-400 text-sm">접수된 대본이 없습니다.</p>
               )}
             </div>
+
+            {/* Column 4: Script Detail */}
             <div className="w-1/3 p-4 overflow-y-auto">
               <h2 className="text-xl text-white font-semibold mb-4">대본 내용</h2>
               {selectedScriptId ? (() => {
@@ -262,8 +317,9 @@ const AdminDashboard = () => {
         )}
       </div>
 
-      <div className="mt-12">
-        <AddUserForm />
+      <div className="mt-12 grid gap-8 md:grid-cols-2">
+        <AddUserForm onUserAdded={handleDataRefresh} />
+        <AddProjectForm userProfiles={userProfiles} onProjectAdded={handleDataRefresh} />
       </div>
     </div>
   );

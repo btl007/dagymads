@@ -57,6 +57,27 @@
           });
         }
    
+        if (!memberName) {
+          return new Response(JSON.stringify({ error: 'Member name (센터명) is required' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+          });
+        }
+
+        // 0. Check for duplicate member_name in user_profiles
+        const { data: existingProfile, error: existingProfileError } = await supabase
+          .from('user_profiles')
+          .select('member_name')
+          .eq('member_name', memberName)
+          .single();
+
+        if (existingProfile) {
+          return new Response(JSON.stringify({ error: `Member name '${memberName}' already exists.` }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 409, // 409 Conflict
+          });
+        }
+
         // 1. Clerk에 사용자 생성
         const clerkUserProps: any = { password };
         if (username) clerkUserProps.username = username;
@@ -92,6 +113,7 @@
           .insert({
             user_id: clerkUser.id,
             name: projectName,
+            status: 'script_needed',
           });
 
         if (projectError) {

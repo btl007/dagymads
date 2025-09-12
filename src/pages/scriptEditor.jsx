@@ -29,21 +29,44 @@ const SaveButton = ({ title, scriptId, onSaveSuccess, currentStatus }) => {
       return;
     }
 
+    // 1. Find the user's most recent project
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (projectError || !projectData) {
+      console.error('Error finding project:', projectError);
+      alert('연결할 프로젝트를 찾을 수 없습니다. 관리자에게 문의하세요.');
+      return;
+    }
+    const projectId = projectData.id;
+
     const editorState = editor.getEditorState();
     const content = editorState.toJSON();
     let error;
     let newScriptId = scriptId;
 
+    const scriptPayload = {
+      title,
+      content,
+      project_id: projectId,
+      updated_at: new Date(),
+    };
+
     if (scriptId) {
       const { error: updateError } = await supabase
         .from('scripts')
-        .update({ title, content, updated_at: new Date() })
+        .update(scriptPayload)
         .eq('id', scriptId);
       error = updateError;
     } else {
       const { data, error: insertError } = await supabase
         .from('scripts')
-        .insert({ user_id: user.id, title, content })
+        .insert({ ...scriptPayload, user_id: user.id })
         .select('id')
         .single();
       error = insertError;
@@ -70,18 +93,48 @@ const SaveButton = ({ title, scriptId, onSaveSuccess, currentStatus }) => {
       return;
     }
 
-    const { error } = await supabase
-      .from('scripts')
-      .update({ status: 'submitted', updated_at: new Date(), submitted_at: new Date() }) // Add submitted_at
-      .eq('id', scriptId);
+    const isConfirmed = window.confirm(
+      "접수되면 해당 대본의 내용으로 촬영팀이 촬영을 진행하며, 유선 연락이 갈 수 있습니다. 동의하십니까?"
+    );
 
-    if (error) {
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      // First, get the project_id from the script
+      const { data: scriptData, error: fetchError } = await supabase
+        .from('scripts')
+        .select('project_id')
+        .eq('id', scriptId)
+        .single();
+
+      if (fetchError || !scriptData || !scriptData.project_id) {
+        throw new Error('스크립트에 연결된 프로젝트를 찾을 수 없습니다.');
+      }
+
+      const { project_id } = scriptData;
+
+      // Update both script and project status in parallel
+      const [scriptUpdateResult, projectUpdateResult] = await Promise.all([
+        supabase
+          .from('scripts')
+          .update({ status: 'submitted', updated_at: new Date(), submitted_at: new Date() })
+          .eq('id', scriptId),
+        supabase
+          .from('projects')
+          .update({ status: 'script_submitted' })
+          .eq('id', project_id)
+      ]);
+
+      if (scriptUpdateResult.error) throw scriptUpdateResult.error;
+      if (projectUpdateResult.error) throw projectUpdateResult.error;
+
+      alert('대본이 성공적으로 접수되었고, 프로젝트 상태가 업데이트되었습니다!');
+      window.location.reload(); // Simple reload to reflect status change
+    } catch (error) {
       console.error('Error submitting script:', error);
       alert(`대본 접수에 실패했습니다: ${error.message}`);
-    } else {
-      alert('대본이 성공적으로 접수되었습니다!');
-      // Optionally, refresh the page or update UI to reflect new status
-      window.location.reload(); // Simple reload to reflect status change
     }
   };
 
