@@ -27,7 +27,7 @@ export default function Header() {
   }
 
   return (
-    <header className="w-full fixed top-0 left-0 z-50 bg-primary bg-opacity-70 border-b border-white/10">
+    <header className="w-full fixed top-0 left-0 z-50 bg-opacity-70 border-b border-white/10">
       <div className="max-w-[300px] md:max-w-4xl mx-auto px-6 py-4 flex justify-between items-center
                 rounded-lg border border-white/20 mt-5 mb-5 bg-white/5 backdrop-blur">
 

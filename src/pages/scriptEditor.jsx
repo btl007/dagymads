@@ -9,6 +9,7 @@ import { BookUser, X, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as Lexical from 'lexical'; // Changed import
 import { $createScriptContainerNode } from '../nodes/ScriptContainerNode'; // Keep this separate
+import { InteractiveHoverButton } from "@/components/magicui/interactive-hover-button";
 
 import sampleScripts from '../data/sampleScript';
 
@@ -139,13 +140,10 @@ const SaveButton = ({ title, scriptId, onSaveSuccess, currentStatus }) => {
   };
 
   return (
-    <div className="absolute top-4 right-4 flex space-x-2 z-10">
-      <button
-        onClick={handleSave}
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-      >
+    <div className="absolute top-0 right-4 flex space-x-2 z-10">
+      <InteractiveHoverButton onClick={handleSave}>
         저장
-      </button>
+      </InteractiveHoverButton>
       {scriptId && ( // Only show submit button if script is already saved (has an ID)
         <button
           onClick={handleSubmit}

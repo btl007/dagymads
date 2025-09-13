@@ -5,6 +5,8 @@ import '../../tailwind.config.js'
 import ToggleSection from '../components/ToggleSection.jsx';
 import ToggleDrop from '../components/ToggleDrop.jsx';
 
+import { ShimmerButton } from "@/components/magicui/shimmer-button";
+
 import angle1 from '../img/angle1.png'
 import angle2 from '../img/angle2.png'
 import angle3 from '../img/angle3.png'
@@ -19,7 +21,7 @@ export default function DagymGuide () {
     return (
         <section className="w-full justify-center mx-auto flex font-ibm text-gray-200 bg-[rgb(21,26,35)]">
             <div id="page-wrapper" className="w-full md:grid grid-cols-12 gap-2 px-5 md:px-16 mx-auto">
-                <nav className="hidden md:block lg:block col-start-1 col-span-3 sticky h-max top-16">
+                <nav className="hidden md:block lg:block col-start-1 col-span-3 sticky h-max top-22">
                     <h3 className="py-6 text-left text-gray-400 text-xl font-bold">다짐 광고영상 가이드</h3>
                     <ul className="space-y-6 font-ibm text-base text-gray-400 font-semibold">
                         <li><a href="#notice" className="hover:text-white transition">유의 사항</a></li>
@@ -29,7 +31,7 @@ export default function DagymGuide () {
                     </ul>
                 </nav>
 
-                <div id="notice" className="w-9/10 md:w-[700px] md:col-start-4 mx-auto mt-20">
+                <div id="notice" className="w-9/10 md:w-[700px] md:col-start-4 mx-auto mt-8">
                     <h2 className="text-left text-xl md:text-3xl font-semibold mb-4">✨ 다짐 광고영상 촬영 가이드 (필독)</h2>
                     <p className="text-left text-base leading-relaxed mt-2 mb-10">
                     사진 촬영과 <strong className="text-orange-400">"광고 영상 촬영"</strong>은 별개의 팀으로 움직이고 있습니다! 현재 문서는 “광고 촬영팀”이 진행합니다.<br /><br />
@@ -307,13 +309,18 @@ export default function DagymGuide () {
                         ]}
                     />
 
-                    {/* 대본작성하기 버튼
+                    {/*대본작성하기 버튼*/}
                     <div className="justify-center mx-auto flex mt-10">
-                        <Link to="/editor" className="mx-auto justify-cetner text-center bg-blue-600 rounded-2xl px-6 py-2 text-white text-xl font-semibold hover:bg-blue-500 transition">
-                            대본 작성하기
+                        <Link to="/editor">
+                            <ShimmerButton shimmerColor="rgba(230,230,253,1)" background="rgba(70,70,230,1" hoverBackground="rgba(100,100,230,1)" >
+                                <div className="mx-auto justify-cetner px-10 text-center text-white text-xl font-semibold">
+                                    대본 작성하기
+                                </div>
+                            </ShimmerButton>
                         </Link>
+                                               
                     </div>
-                    */}
+                    
 
                     <h2 id="reference" className="text-left text-2xl md:text-3xl font-semibold mt-20 mb-4">📓  레퍼런스 (참고 영상)</h2>
                     <div className="mt-2 mb-6">

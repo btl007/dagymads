@@ -56,7 +56,7 @@ function App() {
   return (
     <Router>
       <Header />
-      <div className="min-h-screen pt-32 font-robert">
+      <div className="h-32 bg-[rgb(21,26,35)]" />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/dagymguide" element={<DagymGuide />} />
@@ -121,7 +121,6 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </div>
     </Router>
   );
 }
