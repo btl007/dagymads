@@ -3,15 +3,28 @@ import { SignedIn, SignedOut, SignIn, SignUp, UserButton, RedirectToSignIn, useU
 import { useSupabase } from './components/SupabaseProvider'; // Import useSupabase
 import { useEffect } from 'react';
 
+import AdminLayout from './pages/AdminLayout';
+
+import AdminOverview from './pages/AdminOverview';
+import AdminKanban from './pages/AdminKanban';
+
+import AdminProject from './pages/AdminProject';
+import AdminCreateProject from './pages/AdminCreateProject';
+import AdminScript from './pages/AdminScript';
+import AdminVideo from './pages/AdminVideo';
+
+import AdminUsers from './pages/AdminUsers';
+import AdminCreateUsers from './pages/AdminCreateUsers';
+
+import AdminSettings from './pages/AdminSettings';
+
 import Header from './components/Header';
 import Home from './pages/Home';
-import NotFound from './pages/NotFound'; //404대응
-
 import DagymGuide from './pages/dagymguide';
-
 import ScriptEditor from './pages/scriptEditor';
-import AdminDashboard from './pages/AdminDashboard'; // Import AdminDashboard
-import UserProfile from './pages/UserProfile'; // Import UserProfile
+import UserProfile from './pages/UserProfile';
+
+import NotFound from './pages/NotFound';
 
 function App() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -77,20 +90,34 @@ function App() {
             }
           />
 
-          {/* Admin Dashboard Route */}
+          {/* Admin Dashboard Routes (Nested) */}
           <Route
             path="/admin"
             element={
               <>
                 <SignedIn>
-                  <AdminDashboard />
+                  <AdminLayout />
                 </SignedIn>
                 <SignedOut>
                   <RedirectToSignIn />
                 </SignedOut>
               </>
             }
-          />
+          >
+            <Route index element={<AdminOverview />} />
+
+            <Route path="kanban" element={<AdminKanban />} />
+
+            <Route path="project" element={<AdminProject />} />
+            <Route path="createproject" element={<AdminCreateProject />} />
+            <Route path="script" element={<AdminScript />} />
+            <Route path="video" element={<AdminVideo />} />
+
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="createusers" element={<AdminCreateUsers />} />
+            
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
 
           {/* Sign In & Sign Up */}
           <Route
@@ -121,6 +148,7 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+      
     </Router>
   );
 }

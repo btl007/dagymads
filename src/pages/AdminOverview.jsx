@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
 import { useSupabase } from '../components/SupabaseProvider';
 import AddUserForm from '../components/AddUserForm';
 import AddProjectForm from '../components/AddProjectForm';
 import ProjectCard from '../components/ProjectCard';
 
-// Helper function from original component (can be moved to a utils file later)
+// Helper function
 const extractTextFromLexical = (json) => {
   let text = '';
   try {
@@ -36,20 +35,16 @@ const extractTextFromLexical = (json) => {
   return text.trim();
 };
 
-const AdminDashboard = () => {
-  const { user, isLoaded } = useUser();
-  const navigate = useNavigate();
+const AdminOverview = () => {
+  const { user } = useUser();
   const supabase = useSupabase();
 
-  // State for both views
   const [projects, setProjects] = useState([]);
   const [groupedScripts, setGroupedScripts] = useState({});
   const [userNamesMap, setUserNamesMap] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userProfiles, setUserProfiles] = useState([]);
-
-  // State for Column View selection
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedScriptId, setSelectedScriptId] = useState(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState(null);
@@ -57,28 +52,14 @@ const AdminDashboard = () => {
   const fetchUserProfiles = useCallback(async () => {
     if (!supabase) return;
     try {
-      // Fetch profiles from Supabase
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('user_id, member_name')
-        .order('member_name', { ascending: true });
+      const { data: profilesData, error: profilesError } = await supabase.from('user_profiles').select('user_id, member_name').order('member_name', { ascending: true });
       if (profilesError) throw profilesError;
 
-      // Fetch all users from Clerk to get usernames
-      const { data: clerkUsersData, error: clerkUsersError } = await supabase.functions.invoke('get-all-clerk-users', {
-        method: 'GET'
-      });
+      const { data: clerkUsersData, error: clerkUsersError } = await supabase.functions.invoke('get-all-clerk-users', { method: 'GET' });
       if (clerkUsersError) throw clerkUsersError;
 
-      // Create a map of userId -> username
       const clerkUsernameMap = new Map(clerkUsersData.map(u => [u.id, u.username]));
-
-      // Combine profile data with clerk username
-      const combinedProfiles = profilesData.map(profile => ({
-        ...profile,
-        username: clerkUsernameMap.get(profile.user_id) || profile.member_name, // Fallback to member_name
-      }));
-
+      const combinedProfiles = profilesData.map(profile => ({ ...profile, username: clerkUsernameMap.get(profile.user_id) || profile.member_name }));
       setUserProfiles(combinedProfiles || []);
     } catch (err) {
       console.error('Error fetching user profiles:', err);
@@ -89,22 +70,13 @@ const AdminDashboard = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // 1. Fetch all projects
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data: projectsData, error: projectsError } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
       if (projectsError) throw projectsError;
       setProjects(projectsData || []);
 
-      // 2. Fetch all non-draft scripts
-      const { data: scriptsData, error: scriptsError } = await supabase
-        .from('scripts')
-        .select('id, title, content, updated_at, status, user_id, submitted_at')
-        .neq('status', 'draft');
+      const { data: scriptsData, error: scriptsError } = await supabase.from('scripts').select('id, title, content, updated_at, status, user_id, submitted_at').neq('status', 'draft');
       if (scriptsError) throw scriptsError;
 
-      // 3. Group scripts by user for Column View
       const scriptsByUser = (scriptsData || []).reduce((acc, script) => {
         if (!acc[script.user_id]) acc[script.user_id] = [];
         acc[script.user_id].push(script);
@@ -112,7 +84,6 @@ const AdminDashboard = () => {
       }, {});
       setGroupedScripts(scriptsByUser);
 
-      // 4. Aggregate all unique user IDs and fetch their names
       const projectUserIds = projectsData.map(p => p.user_id);
       const scriptUserIds = (scriptsData || []).map(s => s.user_id);
       const uniqueUserIds = [...new Set([...projectUserIds, ...scriptUserIds])];
@@ -127,7 +98,6 @@ const AdminDashboard = () => {
         const usersData = await response.json();
         setUserNamesMap(usersData);
 
-        // Set initial selection for column view
         if (Object.keys(scriptsByUser).length > 0) {
           setSelectedUserId(Object.keys(scriptsByUser)[0]);
         }
@@ -147,7 +117,6 @@ const AdminDashboard = () => {
     }
   }, [supabase, user, fetchData, fetchUserProfiles]);
 
-  // Effect for Column View: fetch user profile when a user is selected
   useEffect(() => {
     if (!supabase || !selectedUserId) {
       setSelectedUserProfile(null);
@@ -166,7 +135,6 @@ const AdminDashboard = () => {
     fetchUserProfiles();
   };
 
-  // Handler for Kanban View
   const handleUpdateProjectStatus = async (projectId, newStatus) => {
     const { error } = await supabase.from('projects').update({ status: newStatus }).eq('id', projectId);
     if (error) alert(`프로젝트 상태 업데이트 실패: ${error.message}`);
@@ -176,7 +144,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Handler for Column View
   const handleUpdateScriptStatus = async (scriptId, newStatus) => {
     const { error } = await supabase.from('scripts').update({ status: newStatus }).eq('id', scriptId);
     if (error) alert(`대본 상태 업데이트 실패: ${error.message}`);
@@ -185,7 +152,7 @@ const AdminDashboard = () => {
       handleDataRefresh();
     }
   };
-  
+
   const projectsByStatus = projects.reduce((acc, project) => {
     const status = project.status || 'script_needed';
     if (!acc[status]) acc[status] = [];
@@ -202,9 +169,6 @@ const AdminDashboard = () => {
   ];
 
   const statusMap = new Map(kanbanColumns.map(c => [c.id, c.title]));
-
-  if (!isLoaded || !supabase) return <div>Loading...</div>;
-  if (!user || !user.publicMetadata.is_admin) return <div>Access Denied.</div>;
 
   return (
     <div className="p-8">
@@ -228,7 +192,7 @@ const AdminDashboard = () => {
                     userName={userNamesMap[project.user_id]?.username || project.user_id}
                     onUpdateStatus={handleUpdateProjectStatus}
                     statusDisplayName={statusMap.get(project.status) || project.status}
-                    onCenterClick={setSelectedUserId} // Pass the setter function
+                    onCenterClick={setSelectedUserId}
                   />
                 ))}
                 {(!projectsByStatus[column.id] || projectsByStatus[column.id].length === 0) && (
@@ -252,7 +216,6 @@ const AdminDashboard = () => {
           <p className="text-red-400">오류: {error}</p>
         ) : (
           <>
-            {/* Column 1: All Centers */}
             <div className="w-1/6 border-r border-slate-700 p-4 overflow-y-auto">
               <h2 className="text-xl text-white font-semibold mb-4">전체 센터</h2>
               <ul className="space-y-2">
@@ -263,8 +226,6 @@ const AdminDashboard = () => {
                 ))}
               </ul>
             </div>
-
-            {/* Column 2: Center Details */}
             <div className="w-1/6 border-r border-slate-700 p-4 overflow-y-auto">
               <h2 className="text-xl text-white font-semibold mb-4">센터 정보</h2>
               {selectedUserProfile ? (
@@ -277,8 +238,6 @@ const AdminDashboard = () => {
                 <p className="text-slate-400 text-sm">센터를 선택하세요.</p>
               )}
             </div>
-
-            {/* Column 3: Submitted Scripts */}
             <div className="w-1/3 border-r border-slate-700 p-4 overflow-y-auto">
               <h2 className="text-xl text-white font-semibold mb-4">접수된 대본</h2>
               {selectedUserId && groupedScripts[selectedUserId] ? (
@@ -294,8 +253,6 @@ const AdminDashboard = () => {
                 <p className="text-slate-400 text-sm">접수된 대본이 없습니다.</p>
               )}
             </div>
-
-            {/* Column 4: Script Detail */}
             <div className="w-1/3 p-4 overflow-y-auto">
               <h2 className="text-xl text-white font-semibold mb-4">대본 내용</h2>
               {selectedScriptId ? (() => {
@@ -325,4 +282,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default AdminOverview;

@@ -303,3 +303,13 @@ USING (
 	2.	정책을 작성할 때는 중복된 정책을 피하고, 각 CRUD 마다 1개의 정책만 유지하는 게 좋습니다. (중복되면 예기치 못한 권한 충돌 가능)
 
 
+
+---
+
+## Schema Changes (2025-09-13)
+
+ALTER TABLE user_profiles
+ADD COLUMN address TEXT;
+
+ALTER TABLE projects
+ADD COLUMN shootdate DATE;

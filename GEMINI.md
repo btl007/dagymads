@@ -129,3 +129,36 @@ This phase focused on refining the data model for a more organic user experience
 
 - **`JWT expired` Error:** This critical authentication bug was resolved by re-implementing the `SupabaseProvider`. The provider now dynamically furnishes a fresh Clerk auth token for every single API request, rather than using a static token that would expire.
 - **`get-all-clerk-users` Edge Function:** A series of bugs (CORS, HTTP Method, SDK response handling) in this function were systematically debugged and fixed. This function is now used to reliably fetch Clerk `usernames` for display in the admin UI.
+
+---
+
+## Admin Dashboard Refactor & Feature Expansion (Sept 13, 2025)
+
+This session involved a major refactoring of the Admin Dashboard to improve its structure, scalability, and user experience by integrating the `shadcn/ui` component library.
+
+### 1. `shadcn/ui` Integration
+
+- **Installation & Setup:** Installed the `shadcn/ui` library and its dependencies. This involved creating a `jsconfig.json` for path aliasing and debugging several installation issues related to component dependencies (`resizable`, `badge`) and React context (`SidebarProvider`).
+- **UI Enhancement:** Used `shadcn/ui` components to build a professional and consistent UI, including `Table`, `Badge`, and a full sidebar layout.
+- **Dark Mode:** Implemented a persistent dark mode for the entire application by default.
+
+### 2. Nested Routing and Layout Abstraction
+
+- **Problem:** The main `AdminDashboard` component was monolithic, containing the logic and UI for the Kanban board, a detailed 4-column view, and various forms. This made it difficult to manage and scale.
+- **Solution:** The dashboard was refactored to use a nested routing strategy provided by React Router.
+  - **`AdminLayout.jsx`:** A new layout component was created to house the shared UI, primarily the `shadcn/ui` sidebar and the main content panel wrapper. It uses `<Outlet />` to render child routes.
+  - **Componentization:** The monolithic dashboard was broken down into smaller, single-purpose page components:
+    - `AdminOverview.jsx`: The main landing page for the admin section.
+    - `AdminKanban.jsx`: A dedicated page showing only the project Kanban board.
+    - `AdminScript.jsx`: A dedicated page for the detailed 4-column script view.
+    - `AdminUsers.jsx`: A page listing all users and providing a link to create new ones.
+    - `AdminProject.jsx`: A new page that displays all projects in a comprehensive table view.
+    - `AdminCreateUser.jsx` & `AdminCreateProject.jsx`: Dedicated pages for the creation forms.
+- **Scalability:** This new structure makes it significantly easier to add or modify individual sections of the admin dashboard without affecting others.
+
+### 3. Backend Schema Extension
+
+- To support new features, the Supabase database schema was extended:
+  - **`user_profiles` table:** Added an `address` (type `TEXT`) column to store center addresses.
+  - **`projects` table:** Added a `shootdate` (type `DATE`) column to store the planned shooting date for a project.
+- The corresponding `ALTER TABLE` SQL statements were generated and provided for execution in the Supabase SQL Editor.
