@@ -10,11 +10,14 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 
+import { Toaster } from "sonner";
+
 const AdminLayout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <SidebarProvider>
+      <Toaster richColors theme="dark" />
       <ResizablePanelGroup
         direction="horizontal"
         className="w-full h-screen items-stretch"

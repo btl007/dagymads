@@ -105,6 +105,7 @@ const AdminProject = () => {
                 <TableHead>담당자명</TableHead>
                 <TableHead>연락처</TableHead>
                 <TableHead>상태</TableHead>
+                <TableHead>촬영일</TableHead>
                 <TableHead className="text-right">생성일</TableHead>
               </TableRow>
             </TableHeader>
@@ -119,6 +120,7 @@ const AdminProject = () => {
                   <TableCell>
                     <Badge variant={getStatusVariant(project.status)}>{project.status}</Badge>
                   </TableCell>
+                  <TableCell>{project.shootdate || '미정'}</TableCell>
                   <TableCell className="text-right">{new Date(project.created_at).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}

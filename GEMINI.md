@@ -162,3 +162,34 @@ This session involved a major refactoring of the Admin Dashboard to improve its 
   - **`user_profiles` table:** Added an `address` (type `TEXT`) column to store center addresses.
   - **`projects` table:** Added a `shootdate` (type `DATE`) column to store the planned shooting date for a project.
 - The corresponding `ALTER TABLE` SQL statements were generated and provided for execution in the Supabase SQL Editor.
+
+---
+
+## Admin Calendar Feature & Component Refactor (Sept 14, 2025)
+
+This session focused on implementing a significant new feature for the admin dashboard—a calendar for managing project shoot dates—and subsequently refactoring it for reusability after a lengthy debugging process.
+
+### 1. Feature Implementation: Shoot Date Calendar
+
+- **New UI (`AdminVideo.jsx`):** A new page was created featuring a two-panel layout. The left panel displays a calendar, and the right panel displays details for a selected date.
+- **Data Visualization:** The calendar visually indicates which dates have scheduled shoots by rendering a dot beneath the day number.
+- **Interactive Management:**
+  - Clicking a date on the calendar filters and displays the list of projects scheduled for that day.
+  - Clicking a project in the list opens a `Dialog` modal.
+  - Inside the modal, the admin can select a new `shootdate` and save the change to the database.
+  - A `Toast` notification confirms the successful update, and the UI automatically refreshes to reflect the change.
+
+### 2. Critical Bug Resolution
+
+- **The Problem:** A persistent and mysterious bug prevented any data from being fetched within `AdminVideo.jsx`, while other admin pages worked correctly. This meant neither the dots on the calendar nor the project details would appear.
+- **Debugging Journey:** The issue was systematically investigated, ruling out RLS policies, database-to-client data formatting, and component hierarchy issues.
+- **Root Cause:** The bug was finally isolated to a single line of code. The `useSupabase` custom hook was being used incorrectly with object destructuring (`const { supabase } = useSupabase()`) instead of direct assignment (`const supabase = useSupabase()`). This caused the `supabase` client instance to be `undefined` exclusively within this component, preventing all database operations.
+- **Resolution:** Correcting the hook usage immediately resolved all data-fetching issues.
+
+### 3. Architectural Improvement: Component Refactoring
+
+- **Motivation:** Recognizing that a calendar with highlighted dates could be used elsewhere, the decision was made to abstract the functionality.
+- **`CustomCalendar.jsx`:** A new, generic presentational component was created.
+  - It is unaware of business logic like "projects" or "shoots."
+  - It accepts a `highlightedDates` prop (an array of `Date` objects) to render a visual indicator on any given date.
+- **Separation of Concerns:** `AdminVideo.jsx` now retains the business logic (fetching projects, preparing the `shootdate` array) and passes the necessary data as props to the reusable `CustomCalendar` component. This improves maintainability and code reuse.
