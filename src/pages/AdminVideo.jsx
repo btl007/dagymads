@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSupabase } from '../components/SupabaseProvider';
 import {
   Dialog,
@@ -83,11 +83,18 @@ const AdminVideo = () => {
     return `${y}-${m}-${d}`;
   }
 
-  const projectsOnSelectedDate = selectedDate
-    ? projects.filter(p => p.shootdate === toYYYYMMDD(selectedDate))
-    : [];
+  const projectsInSelectedMonth = useMemo(() => {
+    if (!selectedDate) return [];
+    const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0); // Last day of the month
 
-  // Create an array of Date objects for the CustomCalendar
+    return projects.filter(p => {
+      if (!p.shootdate) return false;
+      const shootDate = new Date(p.shootdate + 'T00:00:00'); // Ensure date comparison is consistent
+      return shootDate >= startOfMonth && shootDate <= endOfMonth;
+    });
+  }, [projects, selectedDate]);
+
   const highlightedDates = projects
     .map(p => p.shootdate)
     .filter(Boolean)
@@ -144,7 +151,7 @@ const AdminVideo = () => {
           <Card className="h-full bg-gray-800 border-gray-700 text-white">
             <CardHeader>
               <CardTitle>
-                {selectedDate ? `${selectedDate.toLocaleDateString()} 촬영 정보` : '날짜를 선택하세요'}
+                {selectedDate ? `${selectedDate.getFullYear()}년 ${selectedDate.getMonth() + 1}월 촬영 정보` : '날짜를 선택하세요'}
               </CardTitle>
             </CardHeader>
             <CardContent className="overflow-y-auto">
@@ -152,9 +159,9 @@ const AdminVideo = () => {
                 <div className="text-center text-gray-400 mt-10">로딩 중...</div>
               ) : error ? (
                 <div className="text-center text-red-400 mt-10">에러: {error}</div>
-              ) : selectedDate && projectsOnSelectedDate.length > 0 ? (
+              ) : selectedDate && projectsInSelectedMonth.length > 0 ? (
                 <div className="space-y-4">
-                  {projectsOnSelectedDate.map(project => (
+                  {projectsInSelectedMonth.map(project => (
                     <DialogTrigger asChild key={project.id} onClick={() => {
                       setEditingProject(project);
                       setNewShootDate(project.shootdate ? new Date(project.shootdate + 'T00:00:00') : new Date());
@@ -172,7 +179,7 @@ const AdminVideo = () => {
                 </div>
               ) : (
                 <div className="text-center text-gray-400 mt-10">
-                  {selectedDate ? '해당 날짜에 예정된 촬영이 없습니다.' : '캘린더에서 날짜를 선택하여 촬영 정보를 확인하세요.'}
+                  {selectedDate ? `${selectedDate.getFullYear()}년 ${selectedDate.getMonth() + 1}월에 예정된 촬영이 없습니다.` : '캘린더에서 날짜를 선택하여 촬영 정보를 확인하세요.'}
                 </div>
               )}
             </CardContent>

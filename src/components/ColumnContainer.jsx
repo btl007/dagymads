@@ -2,8 +2,10 @@
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 import { useMemo } from "react";
 import TaskCard from "./TaskCard";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-function ColumnContainer({ column, tasks }) {
+function ColumnContainer({ column, tasks, onViewDetails }) {
   const tasksIds = useMemo(() => {
     return tasks.map((task) => task.id);
   }, [tasks]);
@@ -24,90 +26,44 @@ function ColumnContainer({ column, tasks }) {
 
   if (isDragging) {
     return (
-      <div
+      <Card
         ref={setNodeRef}
         style={style}
-        className="
-      bg-gray-800
-      opacity-40
-      border-2
-      border-rose-500
-      w-[350px]
-      h-[500px]
-      max-h-[500px]
-      rounded-md
-      flex
-      flex-col
-      "
-      ></div>
+        className="w-[350px] h-[500px] max-h-[500px] flex flex-col opacity-40 border-2 border-rose-500 bg-card text-card-foreground"
+      ></Card>
     );
   }
 
   return (
-    <div
+    <Card
       ref={setNodeRef}
       style={style}
-      className="
-      bg-gray-900
-      w-[350px]
-      h-[500px]
-      max-h-[500px]
-      rounded-md
-      flex
-      flex-col
-      "
+      className="w-[350px] h-[500px] max-h-[500px] flex flex-col bg-muted text-card-foreground border-border"
     >
-      {/* Column title */}
-      <div
+      <CardHeader
         {...attributes}
         {...listeners}
-        className="
-      bg-gray-900
-      text-md
-      h-[60px]
-      cursor-grab
-      rounded-md
-      rounded-b-none
-      p-3
-      font-bold
-      border-gray-800
-      border-4
-      flex
-      items-center
-      justify-between
-      "
+        className="flex flex-row items-center justify-between space-y-0 p-3 border-b border-border cursor-grab"
       >
-        <div className="flex gap-2">
-          <div
-            className="
-        flex
-        justify-center
-        items-center
-        bg-gray-800
-        px-2
-        py-1
-        text-sm
-        rounded-full
-        "
-          >
+        <CardTitle className="text-md font-bold flex items-center gap-2">
+          <Badge className="text-sm px-2 py-1 rounded-full bg-card text-card-foreground">
             {tasks.length}
-          </div>
+          </Badge>
           {column.title}
-        </div>
-      </div>
-
-      {/* Column task container */}
-      <div className="flex flex-grow flex-col gap-4 p-2 overflow-x-hidden overflow-y-auto">
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-grow flex-col gap-4 p-2 overflow-x-hidden overflow-y-auto">
         <SortableContext items={tasksIds}>
           {tasks.map((task) => (
             <TaskCard
               key={task.id}
               task={task}
+              onViewDetails={onViewDetails}
             />
           ))}
         </SortableContext>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 

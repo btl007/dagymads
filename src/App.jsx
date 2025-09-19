@@ -30,6 +30,7 @@ import NotFound from './pages/NotFound';
 function App() {
   const { user, isLoaded, isSignedIn } = useUser();
   const supabase = useSupabase();
+  
 
   useEffect(() => {
     if (isLoaded && isSignedIn && supabase) {
@@ -69,8 +70,7 @@ function App() {
 
   return (
     <Router>
-      <Header />
-      <div className="h-32 bg-[rgb(21,26,35)]" />
+      
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/dagymguide" element={<DagymGuide />} />

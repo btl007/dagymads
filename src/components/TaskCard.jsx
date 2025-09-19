@@ -2,8 +2,10 @@ import { useSortable } from "@dnd-kit/sortable";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { useUserCache } from "../contexts/UserCacheContext";
+import { Badge } from "@/components/ui/badge";
+import { PencilIcon } from 'lucide-react';
 
-function TaskCard({ task }) {
+function TaskCard({ task, onViewDetails }) {
   const { userCache } = useUserCache();
 
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } =
@@ -28,38 +30,47 @@ function TaskCard({ task }) {
 
   if (isDragging) {
     return (
-      <div
+      <Card
         ref={setNodeRef}
         style={style}
-        className="opacity-50 bg-gray-800 rounded-lg shadow-md h-[150px]"
+        className="opacity-50 bg-card rounded-lg shadow-md h-[150px] border-border"
       />
     );
   }
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <Card className="bg-gray-800 border-gray-700 text-white hover:ring-2 hover:ring-inset hover:ring-rose-500 cursor-grab relative">
+      <Card className="bg-card text-card-foreground border-border hover:ring-2 hover:ring-inset hover:ring-primary cursor-grab relative">
         <CardHeader className="p-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base font-bold truncate" title={centerName}>
             {centerName}
           </CardTitle>
-          {createdAt && (
-            <span className="text-xs font-semibold text-white whitespace-nowrap bg-blue-600 rounded-md px-2 py-1">
-              D+{daysElapsed}일
-            </span>
-          )}
+          <div className="flex items-center gap-2"> {/* Wrap badge and button */}
+            {createdAt && (
+              <Badge variant="secondary" className="text-xs font-semibold whitespace-nowrap">
+                D+{daysElapsed}일
+              </Badge>
+            )}
+            {/* Add the edit button */}
+            <button
+              className="p-1 rounded-md hover:bg-accent hover:text-accent-foreground"
+              onClick={() => onViewDetails(task)} // Assuming onViewDetails is passed as a prop
+            >
+              <PencilIcon className="h-4 w-4" />
+            </button>
+          </div>
         </CardHeader>
-        <CardContent className="p-3 text-xs text-gray-400 space-y-2">
+        <CardContent className="p-3 text-sm text-muted-foreground space-y-2">
           <div>
-            <span className="font-semibold text-gray-300">생성일: </span>
+            <span className="font-semibold text-foreground">생성일: </span>
             <span>{createdAt ? format(createdAt, 'yyyy-MM-dd') : 'N/A'}</span>
           </div>
           <div>
-            <span className="font-semibold text-gray-300">센터 담당자: </span>
+            <span className="font-semibold text-foreground">센터 담당자: </span>
             <span className="truncate" title={memberName}>{memberName}</span>
           </div>
           <div>
-            <span className="font-semibold text-gray-300">프로젝트명: </span>
+            <span className="font-semibold text-foreground">프로젝트명: </span>
             <span className="truncate" title={projectName}>{projectName}</span>
           </div>
         </CardContent>

@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import ProjectInfoModal from '../components/ProjectInfoModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
 
 const AdminProject = () => {
   const supabase = useSupabase();
@@ -64,6 +65,28 @@ const AdminProject = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedProject(null);
+    fetchData(); // Refresh data after closing modal
+  };
+
+  const handleProjectSave = async (updatedProject) => {
+    if (!supabase) return;
+    try {
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update(updatedProject)
+        .eq('id', updatedProject.id);
+
+      if (updateError) {
+        console.error('Error updating project:', updateError);
+        alert('저장 실패: ' + updateError.message);
+        return;
+      }
+      alert('성공적으로 저장되었습니다.');
+      handleCloseModal(); // Close modal and refresh data
+    } catch (error) {
+      console.error('Error saving project:', error);
+      alert('저장 중 오류 발생: ' + error.message);
+    }
   };
 
   const getStatusVariant = (status) => {
@@ -138,12 +161,22 @@ const AdminProject = () => {
       </div>
 
       {selectedProject && (
-        <ProjectInfoModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          project={selectedProject}
-          userName={userCache[selectedProject.user_id]?.username}
-        />
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>프로젝트 상세 정보</DialogTitle>
+              <DialogDescription>
+                프로젝트의 상세 정보를 확인하고 수정할 수 있습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <ProjectInfoModal
+              project={selectedProject}
+              onClose={handleCloseModal}
+              onSave={handleProjectSave}
+              userName={userCache[selectedProject.user_id]?.username}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

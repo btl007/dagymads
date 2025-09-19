@@ -7,9 +7,10 @@ import { useSupabase } from '../components/SupabaseProvider';
 import { useUserCache } from '../contexts/UserCacheContext';
 import ColumnContainer from '../components/ColumnContainer';
 import TaskCard from '../components/TaskCard';
-import { PROJECT_STATUSES } from '../data/projectStatuses.js'; // 1. status 데이터 import
+import ProjectInfoModal from '../components/ProjectInfoModal'; // Import ProjectInfoModal
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
+import { PROJECT_STATUSES } from '../data/projectStatuses.js';
 
-// 2. status 데이터를 사용해 동적으로 컬럼 생성
 const initialColumns = PROJECT_STATUSES.map(status => ({
   id: status.id,
   title: status.title,
@@ -23,13 +24,17 @@ function AdminKanban() {
   const [activeColumn, setActiveColumn] = useState(null);
   const [activeTask, setActiveTask] = useState(null);
 
+  // State for ProjectInfoModal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+
   const columnsId = useMemo(() => columns.map((col) => col.id), [columns]);
 
   useEffect(() => {
     const fetchProjects = async () => {
       if (!supabase) return;
       try {
-                const { data, error } = await supabase.from('projects').select('*, user_profiles(member_name)');
+        const { data, error } = await supabase.from('projects').select('*, user_profiles(member_name)');
         if (error) throw error;
 
         setTasks(data.map(p => ({ ...p, id: p.id.toString() }))); // Ensure task id is string
@@ -122,6 +127,43 @@ function AdminKanban() {
     // For now, we handle this logic in onDragEnd
   }
 
+  // Function to open the modal with selected project
+  const handleViewDetails = (project) => {
+    setSelectedProject(project);
+    setIsModalOpen(true);
+  };
+
+  // Function to handle modal close
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedProject(null);
+  };
+
+  // Function to handle project save from modal
+  const handleProjectSave = async (updatedProject) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update(updatedProject)
+        .eq('id', updatedProject.id);
+
+      if (error) {
+        console.error('Error updating project:', error);
+        return;
+      }
+
+      // Update tasks state to reflect changes
+      setTasks(prevTasks => prevTasks.map(task =>
+        task.id === updatedProject.id ? { ...task, ...updatedProject } : task
+      ));
+      handleModalClose(); // Close modal after save
+    } catch (error) {
+      console.error('Error saving project:', error);
+    }
+  };
+
+
   return (
     <div className="m-auto flex min-h-screen w-full items-center overflow-x-auto overflow-y-hidden px-[40px]">
       <DndContext
@@ -137,6 +179,7 @@ function AdminKanban() {
                 key={col.id}
                 column={col}
                 tasks={tasks.filter((task) => task.status === col.id)}
+                onViewDetails={handleViewDetails} // Pass handler to ColumnContainer
               />
             ))}
           </SortableContext>
@@ -150,15 +193,35 @@ function AdminKanban() {
                 tasks={tasks.filter(
                   (task) => task.status === activeColumn.id
                 )}
+                onViewDetails={handleViewDetails} // Pass handler to ColumnContainer
               />
             )}
             {activeTask && (
-              <TaskCard task={activeTask} />
+              <TaskCard task={activeTask} onViewDetails={handleViewDetails} />
             )}
           </DragOverlay>,
           document.body
         )}
       </DndContext>
+
+      {/* Project Info Modal */}
+      {selectedProject && (
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>프로젝트 상세 정보</DialogTitle>
+              <DialogDescription>
+                프로젝트의 상세 정보를 확인하고 수정할 수 있습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <ProjectInfoModal
+              project={selectedProject}
+              onClose={handleModalClose}
+              onSave={handleProjectSave}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

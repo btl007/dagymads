@@ -239,3 +239,133 @@ This log summarizes the recent development efforts, focusing on enhancing the Ad
         -   Modified component props to directly receive the complete `project` object.
         -   Editable state variables are now initialized from the `project` prop using a `useEffect`.
         -   The `handleSave` function was updated to correctly use `project.id` and `project.user_id` from the received `project` prop.
+
+1 ---
+    2
+    3 ## 최근 UI/UX 리팩토링 로그 (2025년 9월 19일)
+    4
+    5 이 로그는 최근 UI/UX 리팩토링 노력을 요약하며, 애플리케이션
+      전반의 사용자 경험 및 일관성 향상에 중점을 둡니다.
+    6
+    7 ### 1. AdminLayout.jsx 리팩토링
+    8
+    9 -   **목표:** 메인 관리자 레이아웃, 특히 사이드바 및
+      상호작용 개선.
+   10 -   **변경 사항:**
+   11     -   `ResizablePanelGroup` 및 관련 컴포넌트를 제거하고,
+      더 간단한 Flexbox 기반 레이아웃을 채택했습니다.
+   12     -   사이드바의 너비와 메인 콘텐츠의 여백을 제어하기
+      위해 `SidebarProvider`의 `open` 상태를 통합하여 Notion과
+      같은 축소(아이콘만 있는 얇은 바)를 가능하게 했습니다.
+   13     -   사이드바의 확장/축소 상태를 제어하는
+      `SidebarTrigger` (토글 버튼)를 추가했습니다.
+   14     -   메인 콘텐츠 영역에 `SidebarTrigger`, 정적 페이지
+      제목("Admin Dashboard"), Clerk `UserButton`을 포함하는 기본
+      툴바를 추가했습니다.
+   15 -   **해결:** 기능적인 축소 사이드바를 통해 더욱 간소화되고
+      일관된 관리자 레이아웃을 구현했습니다.
+   16
+   17 ### 2. Header.jsx 리팩토링 (되돌림)
+   18
+   19 -   **목표:** 초기에는 전역 `Header.jsx` 스타일을 SaaS
+      애플리케이션에 더 적합하도록 간소화하려고 시도했습니다.
+   20 -   **변경 사항:**
+   21     -   `backdrop-blur` 및 플로팅 스타일을 제거하고
+      표준적인 전체 너비 고정 헤더로 대체하려고 시도했습니다.
+   22 -   **되돌림:** 사용자 피드백에 따라 `Header.jsx`에 대한
+      모든 변경 사항을 되돌려 원래 상태로 복원했습니다.
+   23
+   24 ### 3. main.jsx 및 App.jsx (되돌림)
+   25
+   26 -   **목표:** 초기에는 `BrowserRouter`를 `main.jsx`로
+      이동하고, 라우트에 따라 `App.jsx`에서 `Header`를 조건부로
+      렌더링하려고 시도했습니다.
+   27 -   **발생한 문제:**
+   28     -   `Router` 중첩 문제로 인한 `App.jsx`의
+      `useLocation()` 오류.
+   29     -   `BrowserRouter`가 "데이터 라우터"가 아니어서
+      `AdminLayout.jsx`의 `useMatches()` 오류.
+   30 -   **되돌림:** 라우팅 관련 오류를 해결하고 디버깅
+      프로세스를 단순화하기 위해 `main.jsx` 및 `App.jsx`에 대한
+      모든 변경 사항을 되돌려 원래 상태로 복원했습니다.
+   31
+   32 ### 4. AdminKanban.jsx 리팩토링
+   33
+   34 -   **목표:** 칸반 보드의 시각적 명확성 및 사용자 경험
+      개선.
+   35 -   **변경 사항:**
+   36     -   **컬럼 스타일링 (`ColumnContainer.jsx`):**
+      `shadcn/ui` `Card` 컴포넌트를 사용하도록 리팩토링했습니다.
+      `TaskCard`와의 시각적 구분을 위해 배경을 `bg-card`에서
+      `bg-muted`로 변경했습니다.
+   37     -   **태스크 카드 스타일링 (`TaskCard.jsx`):**
+      `shadcn/ui` `Card` 컴포넌트 및 테마를 고려한 색상을
+      사용하도록 리팩토링했습니다. `ColumnContainer`의 태스크
+      개수 배지는 일관성을 위해 `TaskCard`의 배경(`bg-card`)과
+      일치하도록 업데이트되었습니다.
+   38     -   **프로젝트 정보 모달 통합:**
+   39         -   각 `TaskCard`에 상세 모달을 여는 "편집"
+      버튼(PencilIcon)을 추가했습니다.
+   40         -   모달을 제어하기 위해 `AdminKanban.jsx`에 상태
+      관리(`isModalOpen`, `selectedProject`)를 구현했습니다.
+   41         -   `AdminKanban.jsx`에서 `shadcn/ui` `Dialog` 및
+      `DialogContent` 내부에 `ProjectInfoModal`을 통합했습니다.
+   42         -   모달 데이터 및 업데이트를 관리하기 위해
+      `handleViewDetails` 및 `handleProjectSave` 함수를
+      구현했습니다.
+   43         -   모달 내 접근성을 위해 `DialogHeader`,
+      `DialogTitle`, `DialogDescription`을 추가했습니다.
+   44 -   **해결:** 칸반 보드의 시각적 매력과 상호작용성을 크게
+      향상시켜 사용자가 태스크 카드에서 직접 프로젝트 세부 정보를
+      보고 편집할 수 있도록 했습니다.
+   45
+   46 ### 5. ProjectInfoModal.jsx 리팩토링
+   47
+   48 -   **목표:** `ProjectInfoModal.jsx`를 내부 `Dialog` 래퍼를
+      제거하여 재사용 가능한 콘텐츠 전용 컴포넌트로 리팩토링.
+   49 -   **변경 사항:**
+   50     -   `Dialog` 및 `DialogContent` 임포트를 제거했습니다.
+   51     -   컴포넌트 프롭에서 `isOpen` 및 `onClose`를
+      제거했습니다.
+   52     -   컴포넌트의 `return` 문을 모달의 콘텐츠를 직접
+      반환하도록 수정했습니다 (React Fragment `<>...</>`로 래핑).
+   53     -   모달 닫기가 이제 부모에서 처리되므로 `handleSave`
+      에서 `onClose()` 호출 및 "취소" 버튼에서
+      `onClick={onClose}`를 제거했습니다.
+   54     -   `export default` 문 및 후행 세미콜론과 관련된 구문
+      오류를 수정했습니다.
+   55 -   **해결:** `ProjectInfoModal`은 이제 "dumb" 컴포넌트가
+      되어 재사용성이 높아졌으며 `AdminKanban.jsx` 및
+      `AdminProject.jsx`에 올바르게 통합되었습니다.
+   56
+   57 ### 6. AdminProject.jsx 리팩토링
+   58
+   59 -   **목표:** 리팩토링된 `ProjectInfoModal`을
+      `AdminProject` 페이지에 올바르게 통합.
+   60 -   **변경 사항:**
+   61     -   `Dialog`, `DialogContent`, `DialogHeader`,
+      `DialogTitle`, `DialogDescription` 임포트를 추가했습니다.
+   62     -   `AdminProject.jsx`에서 `ProjectInfoModal`을
+      `Dialog` 및 `DialogContent`로 래핑하고 `open={isModalOpen}`
+      및 `onOpenChange={setIsModalOpen}`을 전달했습니다.
+   63     -   모달에서 프로젝트 업데이트를 처리하기 위해
+      `handleProjectSave` 함수를 구현했습니다.
+   64     -   `project`, `onClose`, `onSave`, `userName` 프롭이
+      `ProjectInfoModal`에 올바르게 전달되도록 했습니다.
+   65 -   **해결:** `AdminProject`는 이제 오류 없이
+      `ProjectInfoModal`을 올바르게 열고 표시하며
+      `AdminKanban.jsx`와의 일관성을 유지합니다.
+   66
+   67 ### 7. AdminVideo.jsx 리팩토링
+   68
+   69 -   **목표:** 오른쪽 패널이 월별 보기를 기반으로 프로젝트
+      데이터를 표시하도록 리팩토링.
+   70 -   **변경 사항:**
+   71     -   `projectsOnSelectedDate` 대신
+      `projectsInSelectedMonth`를 표시하도록 필터링 로직을
+      수정했습니다.
+   72     -   오른쪽 패널의 `CardTitle`을 선택된 월을 반영하도록
+      업데이트했습니다 (예: "YYYY년 MM월 촬영 정보").
+   73     -   누락된 `useMemo` 임포트를 수정했습니다.
+   74 -   **해결:** `AdminVideo` 페이지는 이제 프로젝트의 월별
+      개요를 제공하여 유용성을 향상시켰습니다.

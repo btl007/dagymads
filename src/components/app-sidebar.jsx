@@ -87,11 +87,11 @@ const sidebarNav = [
 ];
 
 
-export function AppSidebar({ className, isCollapsed, ...props }) {
+export function AppSidebar({ className, ...props }) {
   const location = useLocation(); // 현재 경로를 가져오기 위함
 
   return (
-    <Sidebar {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         {/* 로고 */}
         <div className="p-2 font-bold text-lg text-white flex items-center justify-center">

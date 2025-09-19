@@ -1,51 +1,68 @@
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom'; // Import Outlet
+import React from 'react';
+import { Outlet } from 'react-router-dom'; // Removed useLocation, useMatches
+import { UserButton } from '@clerk/clerk-react'; // Import UserButton
 
-// Shadcn UI Components for Layout
 import { AppSidebar } from '@/components/app-sidebar';
-import { SidebarProvider } from '@/components/ui/sidebar';
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-
+import { SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Toaster } from "sonner";
+import { cn } from '@/lib/utils';
 
-const AdminLayout = () => {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+const AdminLayoutContent = () => {
+  const { open, toggleSidebar } = useSidebar();
+
+  // Define sidebar width based on open state
+  const sidebarWidth = open ? 'w-[var(--sidebar-width)]' : 'w-[var(--sidebar-width-icon)]';
+  const mainContentMargin = open ? 'ml-[var(--sidebar-width)]' : 'ml-[var(--sidebar-width-icon)]';
+
+  // Static page title for now, as dynamic title requires data router
+  const pageTitle = 'Admin Dashboard';
+
 
   return (
-    <SidebarProvider>
-      <Toaster richColors theme="dark" />
-      <ResizablePanelGroup
-        direction="horizontal"
-        className="w-full h-screen items-stretch"
+    <div className="flex h-screen w-full">
+      {/* Sidebar */}
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-10 hidden h-svh transition-[width] duration-200 ease-linear md:flex flex-col",
+          sidebarWidth,
+          "bg-sidebar text-sidebar-foreground"
+        )}
       >
-        {/* Sidebar Panel */}
-        <ResizablePanel
-          defaultSize={20}
-          minSize={15}
-          maxSize={25}
-          collapsible={true}
-          collapsedSize={4}
-          onCollapse={() => setIsSidebarCollapsed(true)}
-          onExpand={() => setIsSidebarCollapsed(false)}
-          className="hidden md:block"
-        >
-          <AppSidebar isCollapsed={isSidebarCollapsed} />
-        </ResizablePanel>
+        <AppSidebar collapsible="icon" />
+      </div>
 
-        <ResizableHandle withHandle className="hidden md:flex" />
-
-        {/* Main Content Panel */}
-        <ResizablePanel defaultSize={80}>
-          <div className="overflow-y-auto h-full">
-            {/* Child routes will be rendered here */}
-            <Outlet />
+      {/* Main Content */}
+      <main
+        className={cn(
+          "flex-1 overflow-y-auto transition-[margin-left] duration-200 ease-linear",
+          mainContentMargin
+        )}
+      >
+        {/* Admin Toolbar */}
+        <div className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-background px-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger onClick={toggleSidebar} />
+            <h1 className="text-lg font-semibold">{pageTitle}</h1>
           </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          <div className="flex items-center gap-4">
+            {/* User Button from Clerk */}
+            <UserButton afterSignOutUrl="/" />
+          </div>
+        </div>
+        
+        <div className="p-4"> {/* Add padding to the content below the toolbar */}
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  );
+};
+
+const AdminLayout = () => {
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <Toaster richColors theme="dark" />
+      <AdminLayoutContent />
     </SidebarProvider>
   );
 };
