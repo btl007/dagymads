@@ -3,6 +3,7 @@ import { SignedIn, SignedOut, SignIn, SignUp, UserButton, RedirectToSignIn, useU
 import { useSupabase } from './components/SupabaseProvider'; // Import useSupabase
 import { useEffect } from 'react';
 
+import { UserCacheProvider } from './contexts/UserCacheContext';
 import AdminLayout from './pages/AdminLayout';
 
 import AdminOverview from './pages/AdminOverview';
@@ -96,7 +97,9 @@ function App() {
             element={
               <>
                 <SignedIn>
-                  <AdminLayout />
+                  <UserCacheProvider>
+                    <AdminLayout />
+                  </UserCacheProvider>
                 </SignedIn>
                 <SignedOut>
                   <RedirectToSignIn />

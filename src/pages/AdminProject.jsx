@@ -1,5 +1,8 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from '../components/SupabaseProvider';
+import { useUserCache } from '../contexts/UserCacheContext';
+import { STATUS_MAP } from '../data/projectStatuses.js';
 import {
   Table,
   TableHeader,
@@ -9,12 +12,18 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import ProjectInfoModal from '../components/ProjectInfoModal';
 
 const AdminProject = () => {
   const supabase = useSupabase();
+  const { userCache, getUserNames } = useUserCache();
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   const fetchData = useCallback(async () => {
     if (!supabase) return;
@@ -22,45 +31,18 @@ const AdminProject = () => {
     setError(null);
 
     try {
-      // 1. Fetch all projects
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select('*')
+        .select('*, user_profiles(member_name, phone_number)')
         .order('created_at', { ascending: false });
       if (projectsError) throw projectsError;
 
-      const userIds = [...new Set(projectsData.map(p => p.user_id))];
-      if (userIds.length === 0) {
-        setProjects([]);
-        return;
+      const userIds = [...new Set(projectsData.map(p => p.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        await getUserNames(userIds);
       }
-
-      // 2. Fetch user profiles for phone numbers and member_name
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('user_id, phone_number, member_name') // member_name 추가
-        .in('user_id', userIds);
-      if (profilesError) throw profilesError;
-      const profilesMap = new Map(profilesData.map(p => [p.user_id, p]));
-
-      // 3. Fetch Clerk user details for center names (username)
-      const response = await fetch('https://jymezpvjdcsdxfreozry.supabase.co/functions/v1/get-clerk-user-details', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userIds }),
-      });
-      if (!response.ok) throw new Error('Failed to fetch user details');
-      const usersData = await response.json();
-
-      // 4. Combine all data
-      const combinedData = projectsData.map(project => ({
-        ...project,
-        center_name: usersData[project.user_id]?.username || 'N/A', // 센터명 (Clerk username)
-        member_name: profilesMap.get(project.user_id)?.member_name || 'N/A', // 담당자명 (Supabase profile)
-        phone_number: profilesMap.get(project.user_id)?.phone_number || '없음',
-      }));
-
-      setProjects(combinedData);
+      
+      setProjects(projectsData);
 
     } catch (err) {
       console.error('Error fetching project data:', err);
@@ -68,22 +50,45 @@ const AdminProject = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, getUserNames]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
+  const handleRowClick = (project) => {
+    setSelectedProject(project);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedProject(null);
+  };
+
   const getStatusVariant = (status) => {
     switch (status) {
-      case 'project_complete':
-        return 'success';
-      case 'script_needed':
-        return 'destructive';
-      default:
-        return 'outline';
+      case 'project_complete': return 'success';
+      case 'script_needed': return 'destructive';
+      default: return 'outline';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-8">
+        <h1 className="text-3xl font-bold mb-2 text-white">전체 프로젝트 목록</h1>
+        <p className="text-lg text-slate-400 mb-8">시스템에 등록된 모든 프로젝트를 조회합니다.</p>
+        <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-lg overflow-hidden p-4 space-y-4">
+          {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="p-8"><p className="text-red-400">데이터 로딩 중 오류 발생: {error}</p></div>
+  }
 
   return (
     <div className="p-8">
@@ -91,44 +96,55 @@ const AdminProject = () => {
       <p className="text-lg text-slate-400 mb-8">시스템에 등록된 모든 프로젝트를 조회합니다.</p>
       
       <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-lg overflow-hidden">
-        {isLoading ? (
-          <p className="p-6 text-center">프로젝트 목록을 불러오는 중...</p>
-        ) : error ? (
-          <p className="p-6 text-center text-red-400">오류: {error}</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[50px]">번호</TableHead>
-                <TableHead>프로젝트 이름</TableHead>
-                <TableHead>센터명</TableHead>
-                <TableHead>담당자명</TableHead>
-                <TableHead>연락처</TableHead>
-                <TableHead>상태</TableHead>
-                <TableHead>촬영일</TableHead>
-                <TableHead className="text-right">생성일</TableHead>
+        <Table>
+          <TableHeader>
+            <TableRow className="border-slate-700 hover:bg-slate-900">
+              <TableHead className="text-white">번호</TableHead>
+              <TableHead className="text-white">센터명</TableHead>
+              <TableHead className="text-white">프로젝트명</TableHead>
+              <TableHead className="text-white">센터 담당자</TableHead>
+              <TableHead className="text-white">담당자 연락처</TableHead>
+              <TableHead className="text-white">촬영일자</TableHead>
+              <TableHead className="text-white">상태</TableHead>
+              <TableHead className="text-white">더보기</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {projects.map((project, index) => (
+              <TableRow 
+                key={project.id} 
+                className="border-slate-800"
+              >
+                <TableCell>{index + 1}</TableCell>
+                <TableCell>{userCache[project.user_id]?.username || 'N/A'}</TableCell>
+                <TableCell>{project.name}</TableCell>
+                <TableCell>{project.user_profiles?.member_name || 'N/A'}</TableCell>
+                <TableCell>{project.user_profiles?.phone_number || '없음'}</TableCell>
+                <TableCell>{project.shootdate ? new Date(project.shootdate).toLocaleDateString() : '미정'}</TableCell>
+                <TableCell>
+                  <Badge variant={getStatusVariant(project.status)}>
+                    {STATUS_MAP.get(project.status) || project.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Button variant="outline" size="sm" onClick={() => handleRowClick(project)}>
+                    더보기
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {projects.map((project, index) => (
-                <TableRow key={project.id}>
-                  <TableCell className="font-medium">{projects.length - index}</TableCell>
-                  <TableCell>{project.name}</TableCell>
-                  <TableCell>{project.center_name}</TableCell>
-                  <TableCell>{project.member_name}</TableCell>
-                  <TableCell>{project.phone_number}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(project.status)}>{project.status}</Badge>
-                  </TableCell>
-                  <TableCell>{project.shootdate || '미정'}</TableCell>
-                  <TableCell className="text-right">{new Date(project.created_at).toLocaleDateString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-         { !isLoading && projects.length === 0 && <p className="p-6 text-center text-slate-500">표시할 프로젝트가 없습니다.</p>}
+            ))}
+          </TableBody>
+        </Table>
       </div>
+
+      {selectedProject && (
+        <ProjectInfoModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          project={selectedProject}
+          userName={userCache[selectedProject.user_id]?.username}
+        />
+      )}
     </div>
   );
 };

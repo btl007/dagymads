@@ -193,3 +193,49 @@ This session focused on implementing a significant new feature for the admin das
   - It is unaware of business logic like "projects" or "shoots."
   - It accepts a `highlightedDates` prop (an array of `Date` objects) to render a visual indicator on any given date.
 - **Separation of Concerns:** `AdminVideo.jsx` now retains the business logic (fetching projects, preparing the `shootdate` array) and passes the necessary data as props to the reusable `CustomCalendar` component. This improves maintainability and code reuse.
+
+---
+
+## Recent Development Log (Sept 19, 2025)
+
+This log summarizes the recent development efforts, focusing on enhancing the Admin Dashboard's data display and interaction.
+
+### 1. AdminKanban.jsx Refactoring & Debugging
+
+-   **Initial Problem:** `ColumnContainer` and `TaskCard` components were imported but not created, leading to errors.
+    -   **Resolution:** Created `src/components/ColumnContainer.jsx` and `src/components/TaskCard.jsx` to provide the necessary UI elements for the Kanban board.
+-   **Dependency Installation:** Encountered `Failed to resolve import "@dnd-kit/core"` errors.
+    -   **Resolution:** Installed missing `@dnd-kit/core` and `@dnd-kit/sortable` packages.
+-   **Vite Cache Issue:** Faced `net::ERR_ABORTED 504 (Outdated Optimize Dep)` error.
+    -   **Resolution:** Cleared Vite's dependency cache by deleting `node_modules/.vite` to force re-bundling.
+-   **Data Loading Bug (Empty Column):** The "대본 필요" column was empty, and a `TypeError: Cannot destructure property 'supabase' of 'useSupabase(...)' as it is undefined` error was identified.
+    -   **Resolution:** Fixed the `useSupabase()` hook call in `AdminKanban.jsx` from `const { supabase } = useSupabase()` to `const supabase = useSupabase()`, resolving the `undefined` client issue.
+-   **User Data Fetching Strategy:** Initial attempts to fetch "Center Name" (Clerk `UserName`) via Supabase joins were incorrect.
+    -   **Resolution:** After analyzing other admin files (`AdminProject`, `AdminScript`, `AdminVideo`), it was confirmed that `useUserCache` is the standard project pattern for fetching `UserName` from Clerk. `AdminKanban.jsx` was refactored to use `useUserCache` for this purpose.
+-   **Import Path Correction:** `Failed to resolve import "../../contexts/UserCacheContext"` error due to an incorrect relative path.
+    -   **Resolution:** Corrected the import path for `UserCacheContext` in both `AdminKanban.jsx` and `TaskCard.jsx`.
+-   **Context Provider Issue:** `TypeError: Cannot destructure property 'userCache' of 'useUserCache(...)' as it is undefined` because `AdminLayout` was not wrapped in `UserCacheProvider`.
+    -   **Resolution:** Wrapped the `AdminLayout` component with `UserCacheProvider` in `App.jsx` to ensure all admin routes have access to the user cache context.
+-   **TaskCard UI Update:** Implemented detailed UI changes for `TaskCard.jsx` as requested by the user.
+    -   **Resolution:** The card's main title now displays the Center Name (Clerk `UserName`). The top-right corner shows "D+{daysElapsed}일" in a badge format. The card content includes "생성일: YYYY-MM-DD", "센터 담당자: member_name", and "프로젝트명: project_name". To support "센터 담당자: member_name", the `AdminKanban.jsx` Supabase query was updated to `select('*, user_profiles(member_name)')`.
+
+### 2. AdminProject.jsx Refactoring
+
+-   **Problem:** `AdminProject.jsx` used a complex, manual data fetching method and contained the same `useSupabase()` bug found elsewhere.
+    -   **Resolution:** Refactored `AdminProject.jsx` to align with the established `useUserCache` pattern for consistency and simplicity.
+        -   Corrected `useSupabase()` hook usage.
+        -   Integrated `useUserCache` for fetching and displaying `UserName` (Center Name).
+        -   The Supabase query was updated to `select('*, user_profiles(member_name, phone_number)')` to efficiently retrieve `member_name` and `phone_number`.
+        -   Fixed `project.project_name` to `project.name` in the JSX for project names.
+        -   Restructured the project table to include new columns: "번호", "센터명", "프로젝트명", "센터 담당자", "담당자 연락처", "촬영일자", "상태" (Korean label from `STATUS_MAP`), and a "더보기" button to open the `ProjectInfoModal`.
+
+### 3. ProjectInfoModal.jsx Refactoring
+
+-   **Problem:** The `ProjectInfoModal` was stuck on a loading state and failed to display data.
+    -   **Root Cause:** The modal was performing redundant internal data fetching, expected a `projectId` prop but received a `project` object, and had an incorrect `useSupabase()` hook usage.
+    -   **Resolution:** Refactored `ProjectInfoModal.jsx` into a "dumb" presentational component.
+        -   Removed all internal data fetching logic and associated state.
+        -   Corrected `useSupabase()` hook usage.
+        -   Modified component props to directly receive the complete `project` object.
+        -   Editable state variables are now initialized from the `project` prop using a `useEffect`.
+        -   The `handleSave` function was updated to correctly use `project.id` and `project.user_id` from the received `project` prop.
