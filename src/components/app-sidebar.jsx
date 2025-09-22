@@ -2,7 +2,7 @@ import * as React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { KanbanSquare, Users, Settings, ListChecks, ChartNoAxesGantt,
           LayoutDashboard, List, SquarePlus, LayoutList, BookType,
-          Video, } from "lucide-react"; // 예시 아이콘
+          Video, CalendarCheck } from "lucide-react"; // 예시 아이콘
 
 import {
   Sidebar,
@@ -56,6 +56,11 @@ const sidebarNav = [
         href: "/admin/video",
         label: "촬영 관리",
         icon: Video,
+      },
+      {
+        href: "/admin/schedule",
+        label: "일정 관리",
+        icon: CalendarCheck,
       },
     ]
   },

@@ -313,3 +313,45 @@ ADD COLUMN address TEXT;
 
 ALTER TABLE projects
 ADD COLUMN shootdate DATE;
+
+---
+
+## 트러블슈팅: 클라이언트 측 Edge Function 호출 시 인증 오류 (2025-09-22)
+
+### 증상
+
+클라이언트(React)에서 `supabase.functions.invoke('함수명')`을 사용하여 Edge Function을 호출할 때, 지속적으로 401 Unauthorized 또는 403 Forbidden 오류가 발생했습니다. 이 문제는 사용자가 정상적으로 로그인되어 있고, `supabase.from('테이블').select()`와 같은 DB 직접 호출은 정상적으로 인증되는 상황에서도 발생했습니다.
+
+### 원인 분석
+
+1.  **401 Unauthorized (인증 실패):** Edge Function 내부에서 `supabase.auth.getUser()`를 통해 사용자 정보를 확인했을 때, `null`이 반환되었습니다. 이는 Edge Function이 클라이언트로부터 유효한 Clerk JWT를 받지 못했음을 의미합니다.
+2.  **403 Forbidden (권한 없음):** 관리자 전용 함수 호출 시, JWT는 전달되었으나 해당 토큰 내에 관리자임을 증명하는 `public_metadata` 정보가 누락되어, 함수 내부의 권한 검사 로직이 실패했습니다.
+
+디버깅 결과, 근본적인 원인은 Supabase JS 클라이언트의 `functions.invoke()` 메서드가 `SupabaseProvider`에서 설정한 토큰 자동 주입 로직을 일관되게 따르지 않는 문제로 추정됩니다. 즉, 테이블 조회 시에는 토큰이 잘 전달되지만, 함수 호출 시에는 전달되지 않는 현상이 발생했습니다.
+
+### 해결 방안
+
+#### 1. 아키텍처 변경: `invoke` 대신 `rpc` 사용
+
+가장 확실하고 안정적인 해결책은, 클라이언트 측에서 `functions.invoke()` 사용을 완전히 중단하는 것입니다.
+
+-   **기존:** 클라이언트 `invoke` -> Edge Function -> DB
+-   **변경:** 클라이언트 `rpc` -> **SQL 함수(RPC)**
+
+모든 백엔드 로직을 데이터베이스의 SQL 함수(PostgreSQL Function)로 구현하고, 클라이언트에서는 `supabase.rpc()`를 통해 직접 호출합니다. `rpc()` 호출은 `from().select()`와 동일한 인증 경로를 사용하므로, Clerk 토큰이 안정적으로 전달되는 것이 확인되었습니다.
+
+#### 2. Clerk JWT 템플릿 설정 확인
+
+RPC 함수 내부에서 관리자 여부(`is_admin`)와 같은 메타데이터를 사용하려면, Clerk의 JWT 템플릿에 해당 정보가 반드시 포함되어야 합니다. 이 프로젝트의 최종 템플릿 설정은 다음과 같습니다.
+
+1.  **Clerk 대시보드** > `JWT Templates` > `supabase` 템플릿 편집
+2.  아래와 같이 `user_id`와 `public_metadata` 클레임이 모두 포함되어 있는지 확인 및 설정합니다.
+
+    ```json
+    {
+      "user_id": "{{user.id}}",
+      "public_metadata": {{user.public_metadata}}
+    }
+    ```
+
+3.  설정 변경 후에는 반드시 **로그아웃 후 재로그인**하여 새로운 토큰을 발급받아야 변경사항이 적용됩니다.

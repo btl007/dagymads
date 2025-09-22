@@ -9,6 +9,12 @@
 - **핵심 개념:** 1시간 단위의 모든 시간 슬롯을 데이터베이스에 미리 생성해두고, 각 슬롯의 상태를 변경하며 사용자와 관리자가 소통합니다.
 - **시간 정책:** 시스템의 모든 시간 데이터는 애플리케이션 레벨에서 **한국 표준시(KST)를 기준**으로 처리합니다.
 
+### 1.1. 아키텍처 결정 (Architectural Decision)
+
+초기에는 클라이언트에서 Supabase Edge Function (`functions.invoke`)을 호출하는 방식을 고려했으나, `SupabaseProvider`를 통한 인증 토큰 자동 주입이 일관되게 동작하지 않아 고질적인 401 Unauthorized 오류가 발생했습니다.
+
+이를 해결하기 위해, 클라이언트에서 호출하는 모든 백엔드 로직은 **데이터베이스 SQL RPC 함수**로 구현하고, 클라이언트에서는 `supabase.rpc()`를 통해 호출하는 것으로 아키텍처를 변경했습니다. 이 방식은 `supabase.from().select()`와 동일한 인증 경로를 사용하므로 인증이 안정적으로 동작하는 것이 확인되었습니다.
+
 ---
 
 ## 2. 데이터 모델 (Data Model)
@@ -23,7 +29,7 @@
 | `slot_time` | `timestampz` | O | 슬롯의 시작 시간 (타임존 포함, 예: `2025-10-23 14:00:00+09`) |
 | `is_open` | `boolean` | O | **관리자가 오픈한 시간인지 여부.** `false`이면 어떤 사용자도 선택할 수 없음. (기본값: `true`) |
 | `booking_status` | `text` | O | **슬롯의 예약 상태.** (기본값: `'available'`)<br>- `available`: 예약 가능<br>- `requested`: 센터가 예약 요청<br>- `confirmed`: 관리자가 예약 확정 |
-| `project_id` | `bigint` (FK) | X | 이 슬롯을 점유(요청/확정)한 프로젝트의 ID. `projects.id`와 연결. |
+| `project_id` | `uuid` (FK) | X | 이 슬롯을 점유(요청/확정)한 프로젝트의 ID. `projects.id`와 연결. |
 
 ### 2.2. 관련 테이블 (기존 테이블 활용)
 
@@ -40,45 +46,30 @@
 
 ---
 
-## 3. 핵심 함수 및 로직 (Core Functions & Logic)
+## 3. 핵심 RPC 함수 및 로직 (Core RPC Functions & Logic)
 
-백엔드(Supabase Edge Function 등)에서 구현되어야 할 주요 함수들입니다.
+모든 백엔드 로직은 클라이언트에서 `supabase.rpc()`로 호출되는 아래의 SQL 함수들로 구현됩니다.
 
-#### `generateDailySlots()`
-- **역할:** 관리자용 또는 Cron Job.
-- **설명:** 매일 자정에 실행되어, 30일 뒤의 날짜에 해당하는 시간 슬롯(00:00 ~ 23:00 KST)을 `time_slots` 테이블에 미리 생성합니다.
-- **입력:** `date` (생성할 날짜)
-- **로직:** 해당 날짜의 24개 슬롯 레코드를 `time_slots`에 `INSERT`합니다.
+#### `generate_slots_for_date(date)`
+- **역할:** SQL 전용 헬퍼 함수.
+- **설명:** 특정 날짜에 대한 24개의 시간 슬롯을 `time_slots` 테이블에 생성합니다. `manual_generate_slots` RPC를 통해 간접적으로 호출됩니다.
 
-#### `updateSlotAvailability(slot_ids, is_open)`
-- **역할:** 관리자용.
-- **설명:** 관리자가 특정 시간 슬롯들을 예약 불가능/가능 상태로 변경합니다.
-- **입력:** `slot_ids` (배열), `is_open` (boolean)
-- **로직:** `slot_ids`에 해당하는 모든 레코드의 `is_open` 값을 업데이트합니다.
+#### `manual_generate_slots(p_target_date)`
+- **역할:** 관리자용 RPC.
+- **설명:** 관리자가 수동으로 특정 날짜의 슬롯을 생성합니다. 내부적으로 관리자 권한을 확인합니다.
 
-#### `getAvailableSlots(start_date, end_date)`
-- **역할:** 클라이언트(센터)용.
-- **설명:** 사용자가 촬영을 요청할 날짜를 선택할 때, 예약 가능한 슬롯 목록을 반환합니다.
-- **입력:** `start_date`, `end_date`
-- **로직:** 주어진 기간 내에서 `is_open = true` 이고 `booking_status = 'available'` 인 모든 슬롯을 조회합니다.
+#### `get_all_slots(p_start_date, p_end_date)`
+- **역할:** 관리자용 RPC.
+- **설명:** 관리자가 특정 기간의 모든 슬롯 정보를 조회합니다. 내부적으로 관리자 권한을 확인합니다.
 
-#### `requestSlots(project_id, slot_ids)`
-- **역할:** 클라이언트(센터)용.
-- **설명:** 사용자가 원하는 시간 슬롯 예약을 요청합니다.
-- **입력:** `project_id`, `slot_ids` (사용자가 선택한 슬롯 ID 배열)
-- **로직:**
-    1. `slot_ids`에 해당하는 슬롯들이 여전히 `available` 상태인지 확인합니다.
-    2. 해당 슬롯들의 `booking_status`를 `'requested'`로, `project_id`를 입력된 `project_id`로 업데이트합니다.
-    3. `projects` 테이블의 상태를 `'schedule_requested'`로 변경합니다.
-    4. (트랜잭션으로 처리되어야 함)
+#### `request_schedule_slots(p_project_id, p_slot_ids, p_user_id)`
+- **역할:** 클라이언트(센터)용 RPC.
+- **설명:** 사용자가 원하는 시간 슬롯 예약을 요청합니다. 내부적으로 프로젝트 소유권을 확인하며, 여러 데이터 업데이트를 트랜잭션으로 처리합니다.
 
-#### `confirmShootDate(project_id, confirmed_slot_id)`
-- **역할:** 관리자용.
-- **설명:** 관리자가 사용자가 요청한 슬롯 중 하나를 최종 촬영일로 확정합니다.
-- **입력:** `project_id`, `confirmed_slot_id` (확정할 슬롯 ID)
-- **로직:**
-    1. `confirmed_slot_id`에 해당하는 슬롯의 `booking_status`를 `'confirmed'`로 변경합니다.
-    2. `projects` 테이블의 `shootdate` 컬럼을 해당 슬롯의 `slot_time` 값으로 업데이트하고, `status`를 `'schedule_confirmed'`로 변경합니다.
-    3. 해당 `project_id`로 요청되었던 다른 모든 슬롯들(`booking_status = 'requested'`)을 다시 `'available'` 상태로 되돌리고 `project_id`를 `null`로 설정합니다.
-    4. (트랜잭션으로 처리되어야 함)
-    5. 관련 담당자들에게 알림을 생성합니다. (`notifications` 테이블 - 추후 구현)
+#### `confirm_schedule_slot(p_project_id, p_confirmed_slot_id)`
+- **역할:** 관리자용 RPC.
+- **설명:** 관리자가 사용자가 요청한 슬롯 중 하나를 최종 촬영일로 확정합니다. 관련 데이터 업데이트를 트랜잭션으로 처리합니다.
+
+#### `update_slot_availability(p_slot_ids, p_is_open)`
+- **역할:** 관리자용 RPC.
+- **설명:** 관리자가 특정 시간 슬롯들의 예약 가능 여부(`is_open`)를 일괄 변경합니다. 내부적으로 관리자 권한 및 슬롯 상태를 확인하여 안전하게 처리합니다.

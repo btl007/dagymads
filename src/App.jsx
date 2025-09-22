@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, SignIn, SignUp, UserButton, RedirectToSignIn, useUser } from '@clerk/clerk-react'; // Import useUser
-import { useSupabase } from './components/SupabaseProvider'; // Import useSupabase
+import { useSupabase, SupabaseProvider } from './components/SupabaseProvider'; // Import useSupabase
 import { useEffect } from 'react';
 
 import { UserCacheProvider } from './contexts/UserCacheContext';
@@ -13,6 +13,7 @@ import AdminProject from './pages/AdminProject';
 import AdminCreateProject from './pages/AdminCreateProject';
 import AdminScript from './pages/AdminScript';
 import AdminVideo from './pages/AdminVideo';
+import AdminSchedule from './pages/AdminSchedule';
 
 import AdminUsers from './pages/AdminUsers';
 import AdminCreateUsers from './pages/AdminCreateUsers';
@@ -115,6 +116,7 @@ function App() {
             <Route path="createproject" element={<AdminCreateProject />} />
             <Route path="script" element={<AdminScript />} />
             <Route path="video" element={<AdminVideo />} />
+            <Route path="schedule" element={<AdminSchedule />} />
 
             <Route path="users" element={<AdminUsers />} />
             <Route path="createusers" element={<AdminCreateUsers />} />
