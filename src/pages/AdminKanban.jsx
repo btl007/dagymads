@@ -218,6 +218,7 @@ function AdminKanban() {
               project={selectedProject}
               onClose={handleModalClose}
               onSave={handleProjectSave}
+              userName={userCache[selectedProject.user_id]?.username}
             />
           </DialogContent>
         </Dialog>

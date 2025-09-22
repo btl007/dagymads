@@ -15,7 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import logo from '@/img/wsk_logo_white.png'; // 로고 이미지
+import logo from '@/img/dagymads_logo.png'; // 로고 이미지
 
 // 계층 구조를 가진 메뉴 데이터
 const sidebarNav = [
@@ -95,7 +95,7 @@ export function AppSidebar({ className, ...props }) {
       <SidebarHeader>
         {/* 로고 */}
         <div className="p-2 font-bold text-lg text-white flex items-center justify-center">
-            <img src={logo} alt="Logo" className="w-[120px]" />
+            <img src={logo} alt="Logo" className="w-[100px] mt-4" />
         </div>
       </SidebarHeader>
 
