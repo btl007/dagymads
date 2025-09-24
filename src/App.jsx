@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import { SignedIn, SignedOut, SignIn, SignUp, UserButton, RedirectToSignIn, useUser } from '@clerk/clerk-react'; // Import useUser
 import { useSupabase, SupabaseProvider } from './components/SupabaseProvider'; // Import useSupabase
 import { useEffect } from 'react';
+import { Toaster } from 'sonner';
 
 import { UserCacheProvider } from './contexts/UserCacheContext';
 import AdminLayout from './pages/AdminLayout';
@@ -12,13 +13,15 @@ import AdminKanban from './pages/AdminKanban';
 import AdminProject from './pages/AdminProject';
 import AdminCreateProject from './pages/AdminCreateProject';
 import AdminScript from './pages/AdminScript';
-import AdminVideo from './pages/AdminVideo';
 import AdminSchedule from './pages/AdminSchedule';
+import AdminVideo from './pages/AdminVideo';
+import AdminEdit from './pages/AdminEdit';
 
 import AdminUsers from './pages/AdminUsers';
 import AdminCreateUsers from './pages/AdminCreateUsers';
 
 import AdminSettings from './pages/AdminSettings';
+import AdminLog from './pages/AdminLog';
 
 import Header from './components/Header';
 import Home from './pages/Home';
@@ -71,89 +74,90 @@ function App() {
 
   return (
     <Router>
-      
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/dagymguide" element={<DagymGuide />} />
+      <Toaster richColors position="top-center" theme="dark" />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/dagymguide" element={<DagymGuide />} />
+        
+        
+        {/* Private Route */}
+        <Route
+          path="/editor/:scriptId?"
+          element={
+            <>
+              <SignedIn>
+                <ScriptEditor />
+              </SignedIn>
+              <SignedOut>
+                <RedirectToSignIn />
+              </SignedOut>
+            </>
+          }
+        />
+
+        {/* Admin Dashboard Routes (Nested) */}
+        <Route
+          path="/admin"
+          element={
+            <>
+              <SignedIn>
+                <UserCacheProvider>
+                  <AdminLayout />
+                </UserCacheProvider>
+              </SignedIn>
+              <SignedOut>
+                <RedirectToSignIn />
+              </SignedOut>
+            </>
+          }
+        >
+          <Route index element={<AdminOverview />} />
+
+          <Route path="kanban" element={<AdminKanban />} />
+
+          <Route path="project" element={<AdminProject />} />
+          <Route path="createproject" element={<AdminCreateProject />} />
+          <Route path="script" element={<AdminScript />} />
+          <Route path="schedule" element={<AdminSchedule />} />
+          <Route path="video" element={<AdminVideo />} />
+          <Route path="edit" element={<AdminEdit />} />
+
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="createusers" element={<AdminCreateUsers />} />
           
-          
-          {/* Private Route */}
-          <Route
-            path="/editor/:scriptId?"
-            element={
-              <>
-                <SignedIn>
-                  <ScriptEditor />
-                </SignedIn>
-                <SignedOut>
-                  <RedirectToSignIn />
-                </SignedOut>
-              </>
-            }
-          />
+          <Route path="settings" element={<AdminSettings />} />
+          <Route path="log" element={<AdminLog />} />
+        </Route>
 
-          {/* Admin Dashboard Routes (Nested) */}
-          <Route
-            path="/admin"
-            element={
-              <>
-                <SignedIn>
-                  <UserCacheProvider>
-                    <AdminLayout />
-                  </UserCacheProvider>
-                </SignedIn>
-                <SignedOut>
-                  <RedirectToSignIn />
-                </SignedOut>
-              </>
-            }
-          >
-            <Route index element={<AdminOverview />} />
+        {/* Sign In & Sign Up */}
+        <Route
+          path="/sign-in/*"
+          element={<SignIn routing="path" path="/sign-in" />}
+        />
+        <Route
+          path="/sign-up/*"
+          element={<SignUp routing="path" path="/sign-up" />}
+        />
 
-            <Route path="kanban" element={<AdminKanban />} />
+        {/* 404 */}
+        {/* User Profile Route */}
+        <Route
+          path="/profile"
+          element={
+            <>
+              <SignedIn>
+                <UserProfile />
+              </SignedIn>
+              <SignedOut>
+                <RedirectToSignIn />
+              </SignedOut>
+            </>
+          }
+        />
 
-            <Route path="project" element={<AdminProject />} />
-            <Route path="createproject" element={<AdminCreateProject />} />
-            <Route path="script" element={<AdminScript />} />
-            <Route path="video" element={<AdminVideo />} />
-            <Route path="schedule" element={<AdminSchedule />} />
-
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="createusers" element={<AdminCreateUsers />} />
-            
-            <Route path="settings" element={<AdminSettings />} />
-          </Route>
-
-          {/* Sign In & Sign Up */}
-          <Route
-            path="/sign-in/*"
-            element={<SignIn routing="path" path="/sign-in" />}
-          />
-          <Route
-            path="/sign-up/*"
-            element={<SignUp routing="path" path="/sign-up" />}
-          />
-
-          {/* 404 */}
-          {/* User Profile Route */}
-          <Route
-            path="/profile"
-            element={
-              <>
-                <SignedIn>
-                  <UserProfile />
-                </SignedIn>
-                <SignedOut>
-                  <RedirectToSignIn />
-                </SignedOut>
-              </>
-            }
-          />
-
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </Router>
   );
 }

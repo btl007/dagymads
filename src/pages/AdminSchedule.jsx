@@ -138,7 +138,7 @@ const AdminSchedule = () => {
       <p className="text-lg text-slate-400 mb-8">시간 슬롯의 예약 가능 여부(is_open)를 관리합니다.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-1 bg-card p-4 rounded-lg border">
+        <div className="md:col-span-2 bg-card p-4 rounded-lg border">
           <div className="flex items-center justify-between mb-4">
             <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>
               <ChevronLeft className="h-4 w-4" />
@@ -148,10 +148,17 @@ const AdminSchedule = () => {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <CustomCalendar mode="single" selected={selectedDay} onSelect={setSelectedDay} month={currentMonth} onMonthChange={setCurrentMonth} highlightedDates={useMemo(() => Array.from(new Set(slots.map(s => format(new Date(s.slot_time), 'yyyy-MM-dd')))).map(d => new Date(d)), [slots])} className="w-full p-0" />
+          <CustomCalendar
+            mode="single"
+            selected={selectedDay}
+            onSelect={setSelectedDay}
+            month={currentMonth}
+            onMonthChange={setCurrentMonth}
+            highlightedDates={useMemo(() => Array.from(new Set(slots.map(s => format(new Date(s.slot_time), 'yyyy-MM-dd')))).map(d => new Date(d)), [slots])}
+            className="w-full rounded-md p-0 border-0 bg-transparent" />
         </div>
 
-        <div className="md:col-span-2 bg-card p-4 rounded-lg border">
+        <div className="md:col-span-1 bg-card p-4 rounded-lg border">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold">{format(selectedDay, 'yyyy년 MM월 dd일')} 슬롯 현황</h3>
             <div className="flex items-center gap-2">

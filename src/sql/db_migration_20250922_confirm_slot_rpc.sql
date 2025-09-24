@@ -48,7 +48,7 @@ BEGIN
     -- 단계 4: `projects` 테이블의 상태와 촬영일(shootdate)을 최종 업데이트
     UPDATE public.projects
     SET 
-        status = 'schedule_confirmed',
+        status = 'schedule_fixed',
         shootdate = v_confirmed_slot_time::date
     WHERE id = p_project_id;
 

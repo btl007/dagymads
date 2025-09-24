@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove } from '@dnd-kit/sortable';
@@ -7,9 +6,10 @@ import { useSupabase } from '../components/SupabaseProvider';
 import { useUserCache } from '../contexts/UserCacheContext';
 import ColumnContainer from '../components/ColumnContainer';
 import TaskCard from '../components/TaskCard';
-import ProjectInfoModal from '../components/ProjectInfoModal'; // Import ProjectInfoModal
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
+import ProjectInfoModal from '../components/ProjectInfoModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PROJECT_STATUSES } from '../data/projectStatuses.js';
+import { toast } from 'sonner';
 
 const initialColumns = PROJECT_STATUSES.map(status => ({
   id: status.id,
@@ -23,33 +23,32 @@ function AdminKanban() {
   const [tasks, setTasks] = useState([]);
   const [activeColumn, setActiveColumn] = useState(null);
   const [activeTask, setActiveTask] = useState(null);
-
-  // State for ProjectInfoModal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
 
   const columnsId = useMemo(() => columns.map((col) => col.id), [columns]);
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      if (!supabase) return;
-      try {
-        const { data, error } = await supabase.from('projects').select('*, user_profiles(member_name)');
-        if (error) throw error;
+  const fetchProjects = useCallback(async () => {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase.from('projects').select('*, user_profiles(member_name)');
+      if (error) throw error;
 
-        setTasks(data.map(p => ({ ...p, id: p.id.toString() }))); // Ensure task id is string
-        
-        const userIds = [...new Set(data.map(p => p.user_id).filter(Boolean))];
-        if (userIds.length > 0) {
-          await getUserNames(userIds);
-        }
-
-      } catch (error) {
-        console.error('Error fetching projects:', error);
+      setTasks(data.map(p => ({ ...p, id: p.id.toString() })));
+      
+      const userIds = [...new Set(data.map(p => p.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        await getUserNames(userIds);
       }
-    };
-    fetchProjects();
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast.error('프로젝트를 불러오는데 실패했습니다.');
+    }
   }, [supabase, getUserNames]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -98,7 +97,6 @@ function AdminKanban() {
       const activeTask = active.data.current.task;
       const newStatus = over.data.current?.column?.id || over.id;
 
-      // Update task status in the database
       if (supabase) {
         const { error } = await supabase
           .from('projects')
@@ -106,63 +104,40 @@ function AdminKanban() {
           .eq('id', activeTask.id);
 
         if (error) {
-          console.error('Error updating task status:', error);
-          // Optionally revert the UI change here
+          toast.error('프로젝트 상태 변경에 실패했습니다.', { description: error.message });
           return;
         }
       }
-
-      // Update UI optimistically
-      setTasks((tasks) => {
-        const activeIndex = tasks.findIndex((t) => t.id === activeId);
-        if (activeIndex === -1) return tasks;
-        tasks[activeIndex].status = newStatus;
-        return [...tasks];
-      });
+      fetchProjects(); // Refresh data after drag-and-drop status change
     }
   }
 
-  function handleDragOver(event) {
-    // This function can be used to handle tasks moving between columns
-    // For now, we handle this logic in onDragEnd
-  }
-
-  // Function to open the modal with selected project
   const handleViewDetails = (project) => {
     setSelectedProject(project);
     setIsModalOpen(true);
   };
 
-  // Function to handle modal close
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedProject(null);
   };
 
-  // Function to handle project save from modal
-  const handleProjectSave = async (updatedProject) => {
+  const handleProjectSave = async (projectChanges, profileChanges) => {
     if (!supabase) return;
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update(updatedProject)
-        .eq('id', updatedProject.id);
+      const { error: projectError } = await supabase.from('projects').update(projectChanges).eq('id', projectChanges.id);
+      const { error: profileError } = await supabase.from('user_profiles').update(profileChanges).eq('user_id', profileChanges.user_id);
 
-      if (error) {
-        console.error('Error updating project:', error);
-        return;
-      }
+      const error = projectError || profileError;
+      if (error) throw error;
 
-      // Update tasks state to reflect changes
-      setTasks(prevTasks => prevTasks.map(task =>
-        task.id === updatedProject.id ? { ...task, ...updatedProject } : task
-      ));
-      handleModalClose(); // Close modal after save
+      toast.success('프로젝트가 성공적으로 업데이트되었습니다.');
+      fetchProjects(); // Refresh Kanban data
+      handleModalClose();
     } catch (error) {
-      console.error('Error saving project:', error);
+      toast.error('프로젝트 업데이트에 실패했습니다.', { description: error.message });
     }
   };
-
 
   return (
     <div className="m-auto flex min-h-screen w-full items-center overflow-x-auto overflow-y-hidden px-[40px]">
@@ -170,7 +145,6 @@ function AdminKanban() {
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
-        onDragOver={handleDragOver}
       >
         <div className="m-auto flex gap-4">
           <SortableContext items={columnsId}>
@@ -179,7 +153,7 @@ function AdminKanban() {
                 key={col.id}
                 column={col}
                 tasks={tasks.filter((task) => task.status === col.id)}
-                onViewDetails={handleViewDetails} // Pass handler to ColumnContainer
+                onViewDetails={handleViewDetails}
               />
             ))}
           </SortableContext>
@@ -193,7 +167,7 @@ function AdminKanban() {
                 tasks={tasks.filter(
                   (task) => task.status === activeColumn.id
                 )}
-                onViewDetails={handleViewDetails} // Pass handler to ColumnContainer
+                onViewDetails={handleViewDetails}
               />
             )}
             {activeTask && (
@@ -204,20 +178,13 @@ function AdminKanban() {
         )}
       </DndContext>
 
-      {/* Project Info Modal */}
       {selectedProject && (
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Dialog open={isModalOpen} onOpenChange={handleModalClose}>
           <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>프로젝트 상세 정보</DialogTitle>
-              <DialogDescription>
-                프로젝트의 상세 정보를 확인하고 수정할 수 있습니다.
-              </DialogDescription>
-            </DialogHeader>
             <ProjectInfoModal
               project={selectedProject}
-              onClose={handleModalClose}
               onSave={handleProjectSave}
+              onClose={handleModalClose}
               userName={userCache[selectedProject.user_id]?.username}
             />
           </DialogContent>

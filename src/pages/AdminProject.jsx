@@ -118,27 +118,24 @@ const AdminProject = () => {
       <h1 className="text-3xl font-bold mb-2 text-white">전체 프로젝트 목록</h1>
       <p className="text-lg text-slate-400 mb-8">시스템에 등록된 모든 프로젝트를 조회합니다.</p>
       
-      <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-card p-4 rounded-lg border">
         <Table>
           <TableHeader>
-            <TableRow className="border-slate-700 hover:bg-slate-900">
-              <TableHead className="text-white">번호</TableHead>
-              <TableHead className="text-white">센터명</TableHead>
-              <TableHead className="text-white">프로젝트명</TableHead>
-              <TableHead className="text-white">센터 담당자</TableHead>
-              <TableHead className="text-white">담당자 연락처</TableHead>
-              <TableHead className="text-white">촬영일자</TableHead>
-              <TableHead className="text-white">상태</TableHead>
-              <TableHead className="text-white">더보기</TableHead>
+            <TableRow>
+              <TableHead>번호</TableHead>
+              <TableHead>센터명</TableHead>
+              <TableHead>프로젝트명</TableHead>
+              <TableHead>센터 담당자</TableHead>
+              <TableHead>담당자 연락처</TableHead>
+              <TableHead>촬영일자</TableHead>
+              <TableHead>상태</TableHead>
+              <TableHead>더보기</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {projects.map((project, index) => (
-              <TableRow 
-                key={project.id} 
-                className="border-slate-800"
-              >
-                <TableCell>{index + 1}</TableCell>
+              <TableRow key={project.id}>
+                <TableCell className="font-medium">{index + 1}</TableCell>
                 <TableCell>{userCache[project.user_id]?.username || 'N/A'}</TableCell>
                 <TableCell>{project.name}</TableCell>
                 <TableCell>{project.user_profiles?.member_name || 'N/A'}</TableCell>

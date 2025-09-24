@@ -355,3 +355,44 @@ RPC 함수 내부에서 관리자 여부(`is_admin`)와 같은 메타데이터�
     ```
 
 3.  설정 변경 후에는 반드시 **로그아웃 후 재로그인**하여 새로운 토큰을 발급받아야 변경사항이 적용됩니다.
+
+---
+
+## Project Scheduling & Logging (2025-09-24)
+
+프로젝트의 촬영 스케줄링 및 상태 변경 이력 추적을 위한 백엔드 시스템입니다.
+
+### 1. 활동 로그 시스템
+
+프로젝트의 모든 상태 변경 이력을 추적하기 위한 시스템입니다.
+
+#### 테이블: `project_activity_logs`
+
+| 컬럼명 | 타입 | 설명 |
+| :--- | :--- | :--- |
+| `id` | `bigint` | 로그 고유 ID |
+| `project_id` | `uuid` | 관련 프로젝트 ID (FK) |
+| `actor_user_id` | `text` | 변경을 수행한 사용자(관리자)의 ID |
+| `old_status` | `text` | 변경 전 상태 |
+| `new_status` | `text` | 변경 후 상태 |
+| `description` | `text` | (사용 안 함) 변경 내용에 대한 설명 |
+| `created_at` | `timestamptz` | 로그 생성 시각 |
+
+#### 트리거: `trg_log_status_change`
+
+-   **테이블:** `projects`
+-   **시점:** `AFTER UPDATE`
+-   **조건:** `OLD.status IS DISTINCT FROM NEW.status` (status 값이 실제로 변경되었을 때만 실행)
+-   **동작:** `log_project_status_change()` 함수를 호출하여 `project_activity_logs` 테이블에 변경 이력을 자동으로 기록합니다.
+
+### 2. 관련 RPC 함수
+
+스케줄링 및 로깅을 위해 다음과 같은 RPC 함수들이 추가되었습니다. 모든 함수는 `SECURITY DEFINER`로 동작하여, 내부적으로 안전한 로직을 수행합니다.
+
+-   `get_available_slots()`: 사용자가 예약 가능한 모든 시간 슬롯 목록을 반환합니다. (`is_open=true`, `booking_status='available'`인 슬롯만 포함)
+-   `request_schedule_slots(p_project_id, p_slot_ids, p_user_id)`: 사용자가 특정 슬롯 예약을 요청합니다. 슬롯 상태를 `requested`로, 프로젝트 상태를 `schedule_submitted`로 변경합니다.
+-   `get_pending_requests()`: 관리자가 승인 대기 중인 모든 예약 요청 목록을 조회합니다.
+-   `deny_schedule_slot(p_project_id, p_slot_id)`: 관리자가 예약 요청을 거절합니다. 슬롯을 다시 `available` 상태로 되돌립니다.
+-   `confirm_schedule_slot(p_project_id, p_confirmed_slot_id)`: 관리자가 예약을 최종 승인합니다. 슬롯 상태를 `confirmed`로, 프로젝트 상태를 `schedule_fixed`로 변경하고 `shootdate`를 기록합니다.
+-   `update_project_status(p_project_id, p_new_status)`: `ProjectInfoModal`에서 프로젝트 상태를 업데이트하기 위한 전용 함수입니다. Supabase의 `.update()` 메서드에서 발견된 버그를 우회하기 위해 사용됩니다.
+-   `get_activity_logs()`: 관리자가 활동 로그 페이지에서 모든 로그 기록을 프로젝트 이름과 함께 조회합니다.

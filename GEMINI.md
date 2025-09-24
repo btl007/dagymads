@@ -263,98 +263,56 @@ This log summarizes the recent development efforts, focusing on enhancing the Ad
    
    ### 3. main.jsx 및 App.jsx (되돌림)
    
-    -   **목표:** 초기에는 `BrowserRouter`를 `main.jsx`로
-      이동하고, 라우트에 따라 `App.jsx`에서 `Header`를 조건부로
-      렌더링하려고 시도했습니다.
+    -   **목표:** 초기에는 `BrowserRouter`를 `main.jsx`로 이동하고, 라우트에 따라 `App.jsx`에서 `Header`를 조건부로 렌더링하려고 시도했습니다.
     -   **발생한 문제:**
-        -   `Router` 중첩 문제로 인한 `App.jsx`의
-      `useLocation()` 오류.
-        -   `BrowserRouter`가 "데이터 라우터"가 아니어서
-      `AdminLayout.jsx`의 `useMatches()` 오류.
-    -   **되돌림:** 라우팅 관련 오류를 해결하고 디버깅
-      프로세스를 단순화하기 위해 `main.jsx` 및 `App.jsx`에 대한
-      모든 변경 사항을 되돌려 원래 상태로 복원했습니다.
+        -   `Router` 중첩 문제로 인한 `App.jsx`의 `useLocation()` 오류.
+        -   `BrowserRouter`가 "데이터 라우터"가 아니어서 `AdminLayout.jsx`의 `useMatches()` 오류.
+    -   **되돌림:** 라우팅 관련 오류를 해결하고 디버깅 프로세스를 단순화하기 위해 `main.jsx` 및 `App.jsx`에 대한 모든 변경 사항을 되돌려 원래 상태로 복원했습니다.
    
     ### 4. AdminKanban.jsx 리팩토링
    
-    -   **목표:** 칸반 보드의 시각적 명확성 및 사용자 경험
-      개선.
+    -   **목표:** 칸반 보드의 시각적 명확성 및 사용자 경험 개선.
     -   **변경 사항:**
-        -   **컬럼 스타일링 (`ColumnContainer.jsx`):**
-      `shadcn/ui` `Card` 컴포넌트를 사용하도록 리팩토링했습니다.
-      `TaskCard`와의 시각적 구분을 위해 배경을 `bg-card`에서
-      `bg-muted`로 변경했습니다.
+        -   **컬럼 스타일링 (`ColumnContainer.jsx`):** `shadcn/ui` `Card` 컴포넌트를 사용하도록 리팩토링했습니다. `TaskCard`와의 시각적 구분을 위해 배경을 `bg-card`에서 `bg-muted`로 변경했습니다.
         -   **태스크 카드 스타일링 (`TaskCard.jsx`):**
-      `shadcn/ui` `Card` 컴포넌트 및 테마를 고려한 색상을
-      사용하도록 리팩토링했습니다. `ColumnContainer`의 태스크
-      개수 배지는 일관성을 위해 `TaskCard`의 배경(`bg-card`)과
-      일치하도록 업데이트되었습니다.
+      `shadcn/ui` `Card` 컴포넌트 및 테마를 고려한 색상을사용하도록 리팩토링했습니다. `ColumnContainer`의 태스크 개수 배지는 일관성을 위해 `TaskCard`의 배경(`bg-card`)과 일치하도록 업데이트되었습니다.
         -   **프로젝트 정보 모달 통합:**
-            -   각 `TaskCard`에 상세 모달을 여는 "편집"
-      버튼(PencilIcon)을 추가했습니다.
-            -   모달을 제어하기 위해 `AdminKanban.jsx`에 상태
-      관리(`isModalOpen`, `selectedProject`)를 구현했습니다.
-            -   `AdminKanban.jsx`에서 `shadcn/ui` `Dialog` 및
-      `DialogContent` 내부에 `ProjectInfoModal`을 통합했습니다.
-            -   모달 데이터 및 업데이트를 관리하기 위해
-      `handleViewDetails` 및 `handleProjectSave` 함수를
-      구현했습니다.
-            -   모달 내 접근성을 위해 `DialogHeader`,
-      `DialogTitle`, `DialogDescription`을 추가했습니다.
-    -   **해결:** 칸반 보드의 시각적 매력과 상호작용성을 크게
-      향상시켜 사용자가 태스크 카드에서 직접 프로젝트 세부 정보를
-      보고 편집할 수 있도록 했습니다.
+            -   각 `TaskCard`에 상세 모달을 여는 "편집" 버튼(PencilIcon)을 추가했습니다.
+            -   모달을 제어하기 위해 `AdminKanban.jsx`에 상태 관리(`isModalOpen`, `selectedProject`)를 구현했습니다.
+            -   `AdminKanban.jsx`에서 `shadcn/ui` `Dialog` 및 `DialogContent` 내부에 `ProjectInfoModal`을 통합했습니다.
+            -   모달 데이터 및 업데이트를 관리하기 위해 `handleViewDetails` 및 `handleProjectSave` 함수를 구현했습니다.
+            -   모달 내 접근성을 위해 `DialogHeader`, `DialogTitle`, `DialogDescription`을 추가했습니다.
+    -   **해결:** 칸반 보드의 시각적 매력과 상호작용성을 크게 향상시켜 사용자가 태스크 카드에서 직접 프로젝트 세부 정보를 보고 편집할 수 있도록 했습니다.
    
     ### 5. ProjectInfoModal.jsx 리팩토링
    
-    -   **목표:** `ProjectInfoModal.jsx`를 내부 `Dialog` 래퍼를
-      제거하여 재사용 가능한 콘텐츠 전용 컴포넌트로 리팩토링.
+    -   **목표:** `ProjectInfoModal.jsx`를 내부 `Dialog` 래퍼를 제거하여 재사용 가능한 콘텐츠 전용 컴포넌트로 리팩토링.
     -   **변경 사항:**
         -   `Dialog` 및 `DialogContent` 임포트를 제거했습니다.
-        -   컴포넌트 프롭에서 `isOpen` 및 `onClose`를
-      제거했습니다.
-        -   컴포넌트의 `return` 문을 모달의 콘텐츠를 직접
-      반환하도록 수정했습니다 (React Fragment `<>...</>`로 래핑).
-        -   모달 닫기가 이제 부모에서 처리되므로 `handleSave`
-      에서 `onClose()` 호출 및 "취소" 버튼에서
-      `onClick={onClose}`를 제거했습니다.
-        -   `export default` 문 및 후행 세미콜론과 관련된 구문
-      오류를 수정했습니다.
-    -   **해결:** `ProjectInfoModal`은 이제 "dumb" 컴포넌트가
-      되어 재사용성이 높아졌으며 `AdminKanban.jsx` 및
-      `AdminProject.jsx`에 올바르게 통합되었습니다.
+        -   컴포넌트 프롭에서 `isOpen` 및 `onClose`를 제거했습니다.
+        -   컴포넌트의 `return` 문을 모달의 콘텐츠를 직접 반환하도록 수정했습니다 (React Fragment `<>...</>`로 래핑).
+        -   모달 닫기가 이제 부모에서 처리되므로 `handleSave` 에서 `onClose()` 호출 및 "취소" 버튼에서 `onClick={onClose}`를 제거했습니다.
+        -   `export default` 문 및 후행 세미콜론과 관련된 구문 오류를 수정했습니다.
+    -   **해결:** `ProjectInfoModal`은 이제 "dumb" 컴포넌트가 되어 재사용성이 높아졌으며 `AdminKanban.jsx` 및 `AdminProject.jsx`에 올바르게 통합되었습니다.
    
     ### 6. AdminProject.jsx 리팩토링
    
-    -   **목표:** 리팩토링된 `ProjectInfoModal`을
-      `AdminProject` 페이지에 올바르게 통합.
+    -   **목표:** 리팩토링된 `ProjectInfoModal`을 `AdminProject` 페이지에 올바르게 통합.
     -   **변경 사항:**
-        -   `Dialog`, `DialogContent`, `DialogHeader`,
-      `DialogTitle`, `DialogDescription` 임포트를 추가했습니다.
-        -   `AdminProject.jsx`에서 `ProjectInfoModal`을
-      `Dialog` 및 `DialogContent`로 래핑하고 `open={isModalOpen}`
-      및 `onOpenChange={setIsModalOpen}`을 전달했습니다.
-        -   모달에서 프로젝트 업데이트를 처리하기 위해
-      `handleProjectSave` 함수를 구현했습니다.
-        -   `project`, `onClose`, `onSave`, `userName` 프롭이
-      `ProjectInfoModal`에 올바르게 전달되도록 했습니다.
-    -   **해결:** `AdminProject`는 이제 오류 없이
-      `ProjectInfoModal`을 올바르게 열고 표시하며
-      `AdminKanban.jsx`와의 일관성을 유지합니다.
+        -   `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription` 임포트를 추가했습니다.
+        -   `AdminProject.jsx`에서 `ProjectInfoModal`을 `Dialog` 및 `DialogContent`로 래핑하고 `open={isModalOpen}` 및 `onOpenChange={setIsModalOpen}`을 전달했습니다.
+        -   모달에서 프로젝트 업데이트를 처리하기 위해 `handleProjectSave` 함수를 구현했습니다.
+        -   `project`, `onClose`, `onSave`, `userName` 프롭이 `ProjectInfoModal`에 올바르게 전달되도록 했습니다.
+    -   **해결:** `AdminProject`는 이제 오류 없이 `ProjectInfoModal`을 올바르게 열고 표시하며 `AdminKanban.jsx`와의 일관성을 유지합니다.
    
     ### 7. AdminVideo.jsx 리팩토링
    
-    -   **목표:** 오른쪽 패널이 월별 보기를 기반으로 프로젝트
-      데이터를 표시하도록 리팩토링.
+    -   **목표:** 오른쪽 패널이 월별 보기를 기반으로 프로젝트 데이터를 표시하도록 리팩토링.
     -   **변경 사항:**
-        -   `projectsOnSelectedDate` 대신
-      `projectsInSelectedMonth`를 표시하도록 필터링 로직을
-      수정했습니다.
-        -   오른쪽 패널의 `CardTitle`을 선택된 월을 반영하도록
-      업데이트했습니다 (예: "YYYY년 MM월 촬영 정보").
+        -   `projectsOnSelectedDate` 대신 `projectsInSelectedMonth`를 표시하도록 필터링 로직을 수정했습니다.
+        -   오른쪽 패널의 `CardTitle`을 선택된 월을 반영하도록 업데이트했습니다 (예: "YYYY년 MM월 촬영 정보").
         -   누락된 `useMemo` 임포트를 수정했습니다.
-    -   **해결:** `AdminVideo` 페이지는 이제 프로젝트의 월별
-      개요를 제공하여 유용성을 향상시켰습니다.
+    -   **해결:** `AdminVideo` 페이지는 이제 프로젝트의 월별 개요를 제공하여 유용성을 향상시켰습니다.
 
 ## 스케줄링 시스템 개발 및 아키텍처 리팩토링 (2025-09-22)
 
@@ -383,3 +341,48 @@ This log summarizes the recent development efforts, focusing on enhancing the Ad
 ### 4. UI 구현
 
 -   **`AdminSchedule.jsx` 페이지 구현:** 리팩토링된 RPC 아키텍처를 기반으로, 관리자가 슬롯의 예약 가능 여부(`is_open`)를 관리하는 UI 페이지를 최종적으로 완성했습니다.
+
+
+## 스케줄링 시스템 완성 및 UI/UX 리팩토링 (2025-09-24)
+
+이번 세션에서는 사용자-관리자 간의 양방향 스케줄링 시스템을 완성하고, 그 과정에서 발견된 여러 버그를 해결했으며, 전반적인 UI/UX를 크게 개선했습니다.
+
+### 1. 핵심 기능 구현: 양방향 스케줄링 시스템
+
+-   **사용자 예약 요청:**
+    -   사용자가 `scriptEditor` 페이지를 벗어나지 않고 촬영일을 예약할 수 있도록, `UserScheduleModal` 컴포넌트를 구현하여 통합된 사용자 경험을 제공했습니다.
+    -   사용자에게는 관리자가 오픈한 시간만 노출되도록, 보안을 고려한 `get_available_slots` RPC 함수를 별도로 생성했습니다.
+    -   사용자의 예약 요청을 처리하기 위해 `request_schedule_slots` RPC 함수를 구현했습니다.
+
+-   **관리자 예약 승인/거절:**
+    -   `AdminVideo` 페이지에 '승인 대기 중인 예약' 섹션을 추가하여, 관리자가 모든 예약 요청을 한눈에 보고 '승인' 또는 '거절'할 수 있는 워크플로우를 완성했습니다.
+    -   이 기능을 위해 `get_pending_requests`, `deny_schedule_slot` 등 신규 RPC 함수를 추가하고, 기존의 `confirm_schedule_slot` 함수와 연동했습니다.
+
+### 2. UI/UX 리팩토링 및 개선
+
+-   **`scriptEditor.jsx` 개선:**
+    -   여러 곳에 흩어져 있던 버튼들을 페이지 상단의 **통합 툴바**로 재배치하여 UI를 깔끔하게 정리했습니다.
+    -   툴바에 현재 **프로젝트의 상태**와 **확정된 촬영 일시**를 항상 표시하여, 사용자가 페이지를 벗어나지 않고도 핵심 정보를 파악할 수 있도록 개선했습니다.
+
+-   **`ProjectInfoModal.jsx` 리팩토링:**
+    -   더 이상 사용하지 않는 '일정 조율' 탭과 필드들을 과감히 제거하고, 전체적인 레이아웃을 단순화하여 정보의 가독성을 높였습니다.
+    -   **(중요)** 모달의 저장 로직을 부모 컴포넌트(`AdminKanban` 등)가 책임지도록 구조를 변경하여, 모달에서 저장 후 부모 컴포넌트의 데이터가 자동으로 새로고침되지 않던 문제를 해결했습니다.
+
+-   **관리자 페이지 UI 통일성 강화:**
+    -   `AdminProject` 페이지의 테이블 스타일을 `AdminEdit` 페이지의 최신 디자인과 동일하게 맞춰, 관리자 대시보드의 전체적인 디자인 통일성을 향상시켰습니다.
+
+### 3. 백엔드 견고성 강화: 활동 로그 시스템 구축
+
+-   **`project_activity_logs` 테이블 및 트리거 생성:**
+    -   모든 프로젝트의 상태 변경 이력을 자동으로 기록하는 활동 로그 시스템을 구축했습니다.
+    -   **데이터베이스 트리거**를 사용하여, `projects` 테이블의 `status`가 변경될 때마다 관련 정보(변경자, 변경 전/후 상태, 시간 등)가 `project_activity_logs` 테이블에 자동으로 기록되도록 구현했습니다. 이를 통해 시스템의 모든 변경 사항을 안정적으로 추적할 수 있게 되었습니다.
+
+-   **`AdminLog.jsx` 페이지 구현:**
+    -   관리자가 모든 활동 로그를 확인할 수 있는 '활동 로그' 페이지를 구현했습니다.
+    -   `get_activity_logs` RPC를 통해 로그 데이터와 관련 프로젝트 이름을 한번에 조회하고, 변경 이력을 한눈에 보기 쉬운 테이블 형태로 제공합니다.
+
+### 4. 고난이도 버그 디버깅 및 해결
+
+-   세션 전반에 걸쳐, 원인을 파악하기 매우 어려운 데이터베이스 버그들을 체계적으로 디버깅하고 해결했습니다.
+-   특히, 클라이언트가 올바른 값을 보냈음에도 불구하고 데이터베이스가 완전히 다른 값으로 오류를 보고하는 이례적인 현상을 마주했습니다.
+-   `BEFORE UPDATE` 트리거, `RULE`, RPC 함수 오버로딩, 타입 캐스팅, `SECURITY DEFINER` 옵션 누락 등 모든 가능성을 순차적으로 테스트했으며, 최종적으로는 Supabase 시스템의 깊은 곳에서 발생하는 버그(트리거 함수 내의 `description` 문자열을 잘못 파싱하는 문제)임을 밝혀내고, 이를 우회하여 문제를 해결했습니다.
