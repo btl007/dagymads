@@ -386,3 +386,85 @@ This log summarizes the recent development efforts, focusing on enhancing the Ad
 -   세션 전반에 걸쳐, 원인을 파악하기 매우 어려운 데이터베이스 버그들을 체계적으로 디버깅하고 해결했습니다.
 -   특히, 클라이언트가 올바른 값을 보냈음에도 불구하고 데이터베이스가 완전히 다른 값으로 오류를 보고하는 이례적인 현상을 마주했습니다.
 -   `BEFORE UPDATE` 트리거, `RULE`, RPC 함수 오버로딩, 타입 캐스팅, `SECURITY DEFINER` 옵션 누락 등 모든 가능성을 순차적으로 테스트했으며, 최종적으로는 Supabase 시스템의 깊은 곳에서 발생하는 버그(트리거 함수 내의 `description` 문자열을 잘못 파싱하는 문제)임을 밝혀내고, 이를 우회하여 문제를 해결했습니다.
+
+# 기술 문서: Admin 페이지 사용자 이름(센터명) 조회 패턴 (2025-11-07)
+
+## 1. 문제 정의
+
+관리자 대시보드의 여러 페이지(`AdminProject`, `AdminKanban`, `AdminEdit` 등)에서는 Supabase `projects` 테이블의 `user_id`를 기반으로 Clerk에 저장된 실제 사용자 이름(센터명)을 표시해야 합니다.
+
+각 페이지에서 개별적으로 사용자 정보를 호출하고 상태를 관리하는 것은 비효율적이며, 중복 코드를 양산하고 API 호출을 낭비하는 문제가 있습니다.
+
+## 2. 해결 방안: `UserCacheContext` 활용
+
+이 문제를 해결하기 위해 프로젝트 전반에 걸쳐 일관된 사용자 데이터 캐싱 및 조회 패턴을 사용합니다. 핵심은 `UserCacheContext`입니다.
+
+`UserCacheContext`는 한 번 조회한 사용자 정보를 메모리에 캐싱하여, 동일한 사용자에 대한 중복 API 호출을 방지하고 모든 관리자 페이지에서 사용자 데이터를 쉽게 공유할 수 있도록 합니다.
+
+### 핵심 구성 요소
+
+-   **`UserCacheProvider`**: 모든 관리자 페이지(`AdminLayout`)를 감싸는 컨텍스트 제공자입니다. 이 Provider 하위에 있는 모든 컴포넌트는 `useUserCache` 훅을 사용할 수 있습니다.
+-   **`useUserCache` Hook**: 다음 두 가지 중요한 요소를 제공하는 커스텀 훅입니다.
+    -   `userCache`: 사용자 정보를 저장하는 객체입니다. `{ [userId]: {username, firstName, ...} }` 형태를 가집니다.
+    -   `getUserNames(userIds)`: `user_id` 배열을 인자로 받아, 캐시에 없는 사용자 정보를 Clerk API를 통해 조회하고 `userCache`를 업데이트하는 비동기 함수입니다.
+
+## 3. 구현 패턴 (Step-by-Step 가이드)
+
+새로운 관리자 페이지에서 프로젝트와 연관된 센터명을 표시해야 할 경우, 반드시 다음 패턴을 따릅니다.
+
+### 1단계: `useUserCache` 훅 호출
+
+컴포넌트 상단에서 `useUserCache` 훅을 호출하여 `userCache` 객체와 `getUserNames` 함수를 가져옵니다.
+
+```javascript
+import { useUserCache } from '../contexts/UserCacheContext';
+
+// ...
+const { userCache, getUserNames, isLoading: isUserCacheLoading } = useUserCache();
+// ...
+```
+
+### 2단계: 데이터 조회 후 `getUserNames` 호출
+
+`useEffect` 또는 `useCallback`을 사용한 데이터 조회 함수 내부에서, Supabase로부터 주 데이터(예: `projects`)를 가져온 **직후**에 `getUserNames`를 호출합니다.
+
+```javascript
+const fetchData = useCallback(async () => {
+  // 1. Supabase에서 프로젝트 데이터를 가져옵니다.
+  const { data: projectsData, error } = await supabase
+    .from('projects')
+    .select('*');
+  if (error) throw error;
+
+  // 2. 가져온 데이터에서 중복을 제거한 user_id 배열을 추출합니다.
+  const userIds = [...new Set(projectsData.map(p => p.user_id).filter(Boolean))];
+
+  // 3. user_id가 있을 경우에만 getUserNames를 호출하여 캐시를 채웁니다.
+  if (userIds.length > 0) {
+    await getUserNames(userIds);
+  }
+
+  setProjects(projectsData);
+}, [supabase, getUserNames]);
+```
+
+### 3단계: JSX에서 `userCache` 사용
+
+데이터를 렌더링할 때, `userCache` 객체를 사용하여 `user_id`에 해당하는 사용자 정보를 조회하고, `username` 속성을 화면에 표시합니다. **객체 전체가 아닌 `.username` 속성을 사용해야 React 렌더링 오류가 발생하지 않습니다.**
+
+**주의:** 데이터가 아직 로드되지 않았을 경우를 대비해, 옵셔널 체이닝(`?.`)과 기본값(`|| '...'`)을 사용하는 것이 안전합니다.
+
+```jsx
+<TableBody>
+  {projects.map(project => (
+    <TableRow key={project.id}>
+      <TableCell>
+        {userCache[project.user_id]?.username || '...'}
+      </TableCell>
+      {/* ... other cells */}
+    </TableRow>
+  ))}
+</TableBody>
+```
+
+이 패턴을 따르면 모든 관리자 페이지에서 최소한의 API 호출로 사용자 이름을 일관되고 효율적으로 표시할 수 있습니다.

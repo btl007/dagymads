@@ -7,12 +7,17 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
-import { PROJECT_STATUSES } from '../data/projectStatuses';
+import { toast } from 'sonner';
+import { PROJECT_STATUSES } from '../data/projectStatuses.js';
+import AdminSchedulePickerModal from './AdminSchedulePickerModal'; // Import the new modal
 
-const ProjectInfoModal = ({ project, userName, onSave, onClose }) => {
+const ProjectInfoModal = ({ project, onSave, onClose, userName, onDataRefresh }) => {
   const supabase = useSupabase();
-
+  const [isEditing, setIsEditing] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false); // State for the new modal
+  
   // State for editable fields
+  const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [memberName, setMemberName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -107,6 +112,13 @@ const ProjectInfoModal = ({ project, userName, onSave, onClose }) => {
     onSave(projectChanges, profileChanges);
   };
 
+  const handleScheduleUpdate = () => {
+    setIsScheduleModalOpen(false);
+    if (onDataRefresh) {
+      onDataRefresh();
+    }
+  };
+
   return (
     <>
       <DialogHeader>
@@ -129,7 +141,13 @@ const ProjectInfoModal = ({ project, userName, onSave, onClose }) => {
                 <Badge variant="secondary" className="ml-2">D+{calculateDaysElapsed(project.created_at)}일</Badge>
               </div>
             </div>
-            <div className="space-y-2"><Label>촬영일</Label><p className="text-sm font-semibold pt-2 text-cyan-400">{formatShootDateTime(confirmedSlot?.slot_time)}</p></div>
+            <div className="space-y-2">
+              <Label>촬영일</Label>
+              <div className="flex items-center gap-2 pt-1">
+                <p className="text-sm font-semibold text-cyan-400">{formatShootDateTime(confirmedSlot?.slot_time)}</p>
+                <Button variant="outline" size="sm" onClick={() => setIsScheduleModalOpen(true)}>일정 변경</Button>
+              </div>
+            </div>
           </div>
 
           <Tabs defaultValue="details" className="w-full">
@@ -164,8 +182,15 @@ const ProjectInfoModal = ({ project, userName, onSave, onClose }) => {
         <Button variant="outline" onClick={onClose}>취소</Button>
         <Button onClick={handleSaveClick}>저장</Button>
       </DialogFooter>
+
+      {/* --- Admin Schedule Picker Modal --- */}
+      <AdminSchedulePickerModal 
+        project={project}
+        isOpen={isScheduleModalOpen}
+        onClose={handleScheduleUpdate}
+      />
     </>
   );
-}
+};
 
 export default ProjectInfoModal;

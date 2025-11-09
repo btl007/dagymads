@@ -25,3 +25,5 @@ dist-ssr
 
 GEMINI_PLAN.md
 DEVELOPMENT_LOG.md
+\n# Local environment variables\n.env
+.env

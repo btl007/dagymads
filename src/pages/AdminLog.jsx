@@ -79,15 +79,19 @@ const AdminLog = () => {
                 <TableCell className="font-medium">{log.project_name || 'N/A'}</TableCell>
                 <TableCell>{userCache[log.actor_user_id]?.username || log.actor_user_id || '시스템'}</TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={getStatusVariant(log.old_status)}>
-                      {STATUS_MAP.get(log.old_status) || log.old_status || '없음'}
-                    </Badge>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    <Badge variant={getStatusVariant(log.new_status)}>
-                      {STATUS_MAP.get(log.new_status) || log.new_status}
-                    </Badge>
-                  </div>
+                  {log.description ? (
+                    <span className="text-sm">{log.description}</span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Badge variant={getStatusVariant(log.old_status)}>
+                        {STATUS_MAP.get(log.old_status) || log.old_status || '없음'}
+                      </Badge>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      <Badge variant={getStatusVariant(log.new_status)}>
+                        {STATUS_MAP.get(log.new_status) || log.new_status}
+                      </Badge>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

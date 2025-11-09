@@ -35,6 +35,21 @@ const sidebarNav = [
     ],
   },
   {
+    group: "센터",
+    items: [
+      {
+        href: "/admin/users",
+        label: "센터 목록",
+        icon: List,
+      },
+      {
+        href: "/admin/createusers",
+        label: "센터 계정 생성",
+        icon: Users,
+      },
+    ],
+  },
+  {
     group: "프로젝트 관리",
     items: [
       {
@@ -68,21 +83,6 @@ const sidebarNav = [
         icon: Film,
       },
     ]
-  },
-  {
-    group: "센터",
-    items: [
-      {
-        href: "/admin/users",
-        label: "센터 목록",
-        icon: List,
-      },
-      {
-        href: "/admin/createusers",
-        label: "센터 계정 생성",
-        icon: Users,
-      },
-    ],
   },
   {
     group: "기타",

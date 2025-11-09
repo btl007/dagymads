@@ -22,7 +22,7 @@ const EDITING_STATUSES = [
 
 const AdminEdit = () => {
   const supabase = useSupabase();
-  const { userCache, isLoading: isUserCacheLoading } = useUserCache();
+  const { userCache, getUserNames, isLoading: isUserCacheLoading } = useUserCache();
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,11 +32,18 @@ const AdminEdit = () => {
     try {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, user_profiles(info, contact_history)')
+        .select('*')
         .in('status', EDITING_STATUSES)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
+      
+      // Fetch user names for the projects
+      const userIds = [...new Set(data.map(p => p.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        await getUserNames(userIds);
+      }
+
       setProjects(data);
     } catch (err) {
       toast.error('편집 프로젝트를 불러오는 데 실패했습니다.', { description: err.message });
@@ -94,14 +101,13 @@ const AdminEdit = () => {
               <TableHead>프로젝트명</TableHead>
               <TableHead>현재 상태</TableHead>
               <TableHead>Frame.io</TableHead>
-              <TableHead>메모</TableHead>
               <TableHead>최신 업데이트</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {projects.map(project => (
               <TableRow key={project.id}>
-                <TableCell className="font-medium">{userCache[project.user_id] || '...'}</TableCell>
+                <TableCell className="font-medium">{userCache[project.user_id]?.username || '...'}</TableCell>
                 <TableCell>{project.name}</TableCell>
                 <TableCell>
                   <Select value={project.status} onValueChange={(newStatus) => handleStatusChange(project.id, newStatus)}>
@@ -114,49 +120,25 @@ const AdminEdit = () => {
                   </Select>
                 </TableCell>
                 <TableCell>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm">링크 관리</Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                      <div className="grid gap-4">
-                        <div className="space-y-2">
-                          <h4 className="font-medium leading-none">Frame.io 링크</h4>
-                          <p className="text-sm text-muted-foreground">리뷰를 위한 링크를 입력하세요.</p>
-                        </div>
-                        <Input 
-                          defaultValue={project.frame_io_link || ''} 
-                          onBlur={(e) => handleLinkUpdate(project.id, e.target.value)}
-                        />
-                        {project.frame_io_link && (
-                           <Button asChild variant="secondary" size="sm">
-                            <a href={project.frame_io_link} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="mr-2 h-4 w-4" /> 링크 열기
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </TableCell>
-                <TableCell>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon"><StickyNote className="h-4 w-4" /></Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-96">
-                      <div className="space-y-4">
-                        <div>
-                          <h5 className="font-semibold mb-2">특이사항</h5>
-                          <p className="text-sm text-muted-foreground bg-slate-800 p-2 rounded-md">{project.user_profiles?.info || '내용 없음'}</p>
-                        </div>
-                        <div>
-                          <h5 className="font-semibold mb-2">컨택 히스토리</h5>
-                          <p className="text-sm text-muted-foreground bg-slate-800 p-2 rounded-md">{project.user_profiles?.contact_history || '내용 없음'}</p>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Frame.io 링크 입력..."
+                      defaultValue={project.frame_io_link || ''}
+                      onBlur={(e) => handleLinkUpdate(project.id, e.target.value)}
+                      className="max-w-xs"
+                    />
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      disabled={!project.frame_io_link}
+                    >
+                      <a href={project.frame_io_link} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  </div>
                 </TableCell>
                 <TableCell>{new Date(project.updated_at).toLocaleDateString('ko-KR')}</TableCell>
               </TableRow>

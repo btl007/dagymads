@@ -171,6 +171,7 @@ const AdminProject = () => {
               onClose={handleCloseModal}
               onSave={handleProjectSave}
               userName={userCache[selectedProject.user_id]?.username}
+              onDataRefresh={fetchData} 
             />
           </DialogContent>
         </Dialog>
