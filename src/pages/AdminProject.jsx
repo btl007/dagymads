@@ -34,7 +34,7 @@ const AdminProject = () => {
     try {
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select('*, user_profiles(member_name, phone_number)')
+        .select('*, user_profiles(center_name, member_name, phone_number)')
         .order('created_at', { ascending: false });
       if (projectsError) throw projectsError;
 
@@ -136,7 +136,10 @@ const AdminProject = () => {
             {projects.map((project, index) => (
               <TableRow key={project.id}>
                 <TableCell className="font-medium">{index + 1}</TableCell>
-                <TableCell>{userCache[project.user_id]?.username || 'N/A'}</TableCell>
+                <TableCell>
+                  <div className="font-medium">{project.user_profiles?.center_name || '이름 없음'}</div>
+                  <div className="text-xs text-muted-foreground">{userCache[project.user_id]?.username || 'ID 없음'}</div>
+                </TableCell>
                 <TableCell>{project.name}</TableCell>
                 <TableCell>{project.user_profiles?.member_name || 'N/A'}</TableCell>
                 <TableCell>{project.user_profiles?.phone_number || '없음'}</TableCell>

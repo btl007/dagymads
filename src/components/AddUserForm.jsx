@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useSupabase } from './SupabaseProvider';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -20,6 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 const AddUserForm = ({ onSuccess }) => {
   const supabase = useSupabase();
   const [username, setUsername] = useState('');
+  const [centerName, setCenterName] = useState('');
   const [password, setPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [memberName, setMemberName] = useState('');
@@ -41,6 +41,7 @@ const AddUserForm = ({ onSuccess }) => {
       const { data, error: functionError } = await supabase.functions.invoke('create-clerk-user', {
         body: {
           username,
+          centerName,
           password,
           phoneNumber,
           memberName,
@@ -54,6 +55,7 @@ const AddUserForm = ({ onSuccess }) => {
       toast.success(`사용자 '${username}'가 성공적으로 생성되었습니다!`);
       // Clear form
       setUsername('');
+      setCenterName('');
       setPassword('');
       setPhoneNumber('');
       setMemberName('');
@@ -64,7 +66,6 @@ const AddUserForm = ({ onSuccess }) => {
 
     } catch (err) {
       console.error('Error creating user:', err);
-      // Specific password error from Clerk
       if (err.message && err.message.includes('form_password_pwned')) {
         setError('보안에 취약한 비밀번호입니다. 온라인 데이터 유출에서 발견된 적이 있으니 다른 비밀번호를 사용해주세요.');
         toast.error('비밀번호가 안전하지 않습니다.', {
@@ -86,19 +87,35 @@ const AddUserForm = ({ onSuccess }) => {
     <Card>
       <CardHeader>
         <CardTitle>새 사용자 생성</CardTitle>
-        <CardDescription>새로운 센터(사용자)를 시스템에 등록합니다. 센터명과 비밀번호는 필수 항목입니다.</CardDescription>
+        <CardDescription>새로운 센터(사용자)를 시스템에 등록합니다.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="username">센터명 (필수)</Label>
+            <Label htmlFor="username">센터 ID (영문/숫자, 필수)</Label>
             <Input
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+              placeholder="예: dagym_gangnam (로그인 시 사용)"
+            />
+             <p className="text-sm text-muted-foreground">
+              Clerk에 등록될 고유 ID입니다. 영문, 숫자, 언더스코어(_)만 사용 가능합니다.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="centerName">센터 이름 (한글, 필수)</Label>
+            <Input
+              id="centerName"
+              value={centerName}
+              onChange={(e) => setCenterName(e.target.value)}
+              required
               placeholder="예: 다짐 피트니스 강남점"
             />
+            <p className="text-sm text-muted-foreground">
+              실제 UI에 표시될 이름입니다.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">비밀번호 (필수)</Label>

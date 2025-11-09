@@ -22,7 +22,9 @@ function TaskCard({ task, onViewDetails }) {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
   };
 
-  const centerName = userCache[task.user_id]?.username || '...';
+  // Explicitly define each name for clarity
+  const centerName = task.user_profiles?.center_name;
+  const username = userCache[task.user_id]?.username || '...';
   const memberName = task.user_profiles?.member_name || 'N/A';
   const projectName = task.name || 'Untitled Project';
   const createdAt = task.created_at ? parseISO(task.created_at) : null;
@@ -42,9 +44,17 @@ function TaskCard({ task, onViewDetails }) {
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <Card className="bg-card text-card-foreground border-border hover:ring-2 hover:ring-inset hover:ring-primary cursor-grab relative">
         <CardHeader className="p-3 flex flex-row items-center justify-between">
-          <CardTitle className="text-base font-bold truncate" title={centerName}>
-            {centerName}
-          </CardTitle>
+          <div className="truncate">
+            <CardTitle className="text-base font-bold truncate" title={centerName || username}>
+              {centerName || username}
+            </CardTitle>
+            {/* Only show username separately if centerName exists */}
+            {centerName && (
+              <p className="text-xs text-muted-foreground truncate" title={username}>
+                ({username})
+              </p>
+            )}
+          </div>
           <div className="flex items-center gap-2"> {/* Wrap badge and button */}
             {createdAt && (
               <Badge variant="secondary" className="text-xs font-semibold whitespace-nowrap">

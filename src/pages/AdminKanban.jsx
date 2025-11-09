@@ -31,7 +31,7 @@ function AdminKanban() {
   const fetchProjects = useCallback(async () => {
     if (!supabase) return;
     try {
-      const { data, error } = await supabase.from('projects').select('*, user_profiles(member_name)');
+      const { data, error } = await supabase.from('projects').select('*, user_profiles(center_name, member_name)');
       if (error) throw error;
 
       setTasks(data.map(p => ({ ...p, id: p.id.toString() })));

@@ -41,7 +41,7 @@
       }
    
       try {
-        const { username, password, email, firstName, lastName, phoneNumber, memberName } = await req.json();
+        const { username, centerName, password, email, firstName, lastName, phoneNumber, memberName } = await req.json();
    
         if (!username && !email) {
           return new Response(JSON.stringify({ error: 'Username or email is required for Clerk user creation' }), {
@@ -92,6 +92,7 @@
           .from('user_profiles')
           .insert({
             user_id: clerkUser.id, // Clerk의 사용자 ID
+            center_name: centerName || null, // 새로 추가된 필드
             phone_number: phoneNumber || null,
             member_name: memberName || null,
           });
