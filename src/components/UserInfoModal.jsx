@@ -5,20 +5,24 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { toast } from 'sonner';
+import { Lock } from 'lucide-react';
 
 const UserInfoModal = ({ userProfile, username, onSave, onClose }) => {
   const supabase = useSupabase();
+  const [isResetting, setIsResetting] = useState(false);
   
   // State for editable fields
   const [centerName, setCenterName] = useState('');
   const [memberName, setMemberName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [address, setAddress] = useState('');
   
   useEffect(() => {
     if (userProfile) {
       setCenterName(userProfile.center_name || '');
       setMemberName(userProfile.member_name || '');
       setPhoneNumber(userProfile.phone_number || '');
+      setAddress(userProfile.address || '');
     }
   }, [userProfile]);
 
@@ -29,6 +33,7 @@ const UserInfoModal = ({ userProfile, username, onSave, onClose }) => {
       center_name: centerName,
       member_name: memberName,
       phone_number: phoneNumber,
+      address: address,
     };
 
     try {
@@ -48,6 +53,35 @@ const UserInfoModal = ({ userProfile, username, onSave, onClose }) => {
       toast.error('사용자 정보 업데이트에 실패했습니다.', {
         description: error.message,
       });
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!confirm("비밀번호를 초기화하시겠습니까?\n\n초기값: Dagym1234!")) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-clerk-user-password', {
+        body: { 
+          userId: userProfile.user_id,
+          newPassword: 'Dagym1234!'
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success('비밀번호가 초기화되었습니다.', {
+        description: '초기 비밀번호: Dagym1234!'
+      });
+    } catch (err) {
+      console.error('Password reset error:', err);
+      toast.error('비밀번호 초기화 실패', {
+        description: err.message
+      });
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -98,11 +132,33 @@ const UserInfoModal = ({ userProfile, username, onSave, onClose }) => {
             className="col-span-3"
           />
         </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="address" className="text-right">
+            주소
+          </Label>
+          <Input
+            id="address"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            className="col-span-3"
+          />
+        </div>
       </div>
 
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose}>취소</Button>
-        <Button onClick={handleSaveClick}>저장</Button>
+      <DialogFooter className="flex justify-between items-center sm:justify-between">
+        <Button 
+          variant="destructive" 
+          onClick={handleResetPassword} 
+          disabled={isResetting}
+          type="button"
+        >
+          <Lock className="w-4 h-4 mr-2" />
+          {isResetting ? '초기화 중...' : '비밀번호 초기화'}
+        </Button>
+        <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>취소</Button>
+            <Button onClick={handleSaveClick}>저장</Button>
+        </div>
       </DialogFooter>
     </>
   );

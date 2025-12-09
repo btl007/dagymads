@@ -1,9 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useSupabase } from '../components/SupabaseProvider';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Pencil } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { PlusCircle, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import UserInfoModal from '../components/UserInfoModal';
 
 const AdminUsers = () => {
@@ -12,6 +22,7 @@ const AdminUsers = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchUserProfiles = useCallback(async () => {
     if (!supabase) return;
@@ -19,7 +30,7 @@ const AdminUsers = () => {
     try {
       const { data: profilesData, error: profilesError } = await supabase
         .from('user_profiles')
-        .select('user_id, center_name, member_name, phone_number, created_at')
+        .select('user_id, center_name, member_name, phone_number, address, created_at')
         .order('created_at', { ascending: false });
       if (profilesError) throw profilesError;
 
@@ -58,13 +69,21 @@ const AdminUsers = () => {
     fetchUserProfiles(); // Refresh the list after saving
   };
 
+  const filteredProfiles = useMemo(() => {
+    return userProfiles.filter(profile => 
+      profile.center_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      profile.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      profile.member_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [userProfiles, searchTerm]);
+
   return (
     <div className="p-8">
-        <div>
-          <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
             <div>
                 <h1 className="text-3xl font-bold text-white">사용자 목록</h1>
-                <p className="text-lg text-slate-400">현재 등록된 모든 사용자 목록입니다.</p>
+                <p className="text-lg text-slate-400 mt-1">현재 등록된 모든 사용자 계정을 관리합니다.</p>
             </div>
             <Link to="/admin/createusers">
                 <Button>
@@ -72,47 +91,82 @@ const AdminUsers = () => {
                     새 사용자 추가
                 </Button>
             </Link>
-          </div>
-          <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-lg p-4 h-[70vh] overflow-y-auto">
-            {isLoading ? (
-              <p>Loading users...</p>
-            ) : (
-              <ul className="space-y-3">
-                {userProfiles.map(profile => (
-                  <li key={profile.user_id} className="p-3 bg-slate-800 rounded-md flex justify-between items-center">
-                    <div>
-                      <p className="font-bold text-white">{profile.center_name || profile.username}</p>
-                      <p className="text-sm text-slate-400">@{profile.username}</p>
-                      <p className="text-sm text-slate-300 mt-1">담당자: {profile.member_name || '미지정'}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                          <p className="text-xs text-slate-400">{profile.phone_number || '연락처 없음'}</p>
-                          <p className="text-xs text-slate-500">가입: {new Date(profile.created_at).toLocaleDateString()}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleEditClick(profile)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
         </div>
 
-        {selectedProfile && (
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogContent>
-              <UserInfoModal
-                userProfile={selectedProfile}
-                username={selectedProfile.username}
-                onSave={handleSaveSuccess}
-                onClose={handleModalClose}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
+        {/* Search Bar */}
+        <div className="relative max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="센터명, ID, 담당자명 검색..." 
+            className="pl-8 bg-slate-900 border-slate-700"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {/* Users Table */}
+        <div className="bg-card border rounded-lg overflow-hidden">
+          {isLoading ? (
+             <div className="p-4 space-y-4">
+               {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+             </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[60px]">번호</TableHead>
+                  <TableHead>센터명</TableHead>
+                  <TableHead>ID</TableHead>
+                  <TableHead>담당자</TableHead>
+                  <TableHead>연락처</TableHead>
+                  <TableHead>주소</TableHead>
+                  <TableHead>가입일</TableHead>
+                  <TableHead className="text-right">관리</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProfiles.length > 0 ? (
+                  filteredProfiles.map((profile, index) => (
+                    <TableRow key={profile.user_id}>
+                      <TableCell className="font-medium">{index + 1}</TableCell>
+                      <TableCell className="font-semibold">{profile.center_name || '-'}</TableCell>
+                      <TableCell className="text-muted-foreground font-mono text-xs">@{profile.username}</TableCell>
+                      <TableCell>{profile.member_name || '-'}</TableCell>
+                      <TableCell>{profile.phone_number || '-'}</TableCell>
+                      <TableCell className="max-w-[200px] truncate" title={profile.address}>{profile.address || '-'}</TableCell>
+                      <TableCell>{new Date(profile.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => handleEditClick(profile)}>
+                          수정
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-24 text-center">
+                      검색 결과가 없습니다.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </div>
+
+      {selectedProfile && (
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <UserInfoModal
+              userProfile={selectedProfile}
+              username={selectedProfile.username}
+              onSave={handleSaveSuccess}
+              onClose={handleModalClose}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
