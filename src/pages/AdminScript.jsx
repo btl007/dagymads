@@ -1,212 +1,254 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useUser } from '@clerk/clerk-react';
-import { useSupabase } from '../components/SupabaseProvider';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSupabase } from '@/components/SupabaseProvider';
+import { useUserCache } from '@/contexts/UserCacheContext';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Loader2, CheckCircle, XCircle, FileText, User, Calendar } from 'lucide-react';
+import { toast } from 'sonner';
 
-// Helper function
-const extractTextFromLexical = (json) => {
-  let text = '';
+// Helper to render Lexical content as simple text with line breaks
+const LexicalViewer = ({ content }) => {
+  if (!content) return <div className="text-muted-foreground">내용이 없습니다.</div>;
+
+  let textContent = [];
   try {
-    const parsedJson = typeof json === 'string' ? JSON.parse(json) : json;
-    if (parsedJson && parsedJson.root && parsedJson.root.children) {
-      for (const rootChild of parsedJson.root.children) {
-        if (rootChild.type === 'script-container' && rootChild.children) {
-          for (const containerChild of rootChild.children) {
-            if (containerChild.children) {
-              for (const innerChild of containerChild.children) {
-                if (innerChild.type === 'text') text += innerChild.text + ' ';
-              }
+    const parsedJson = typeof content === 'string' ? JSON.parse(content) : content;
+    if (parsedJson?.root?.children) {
+      const traverse = (nodes) => {
+        nodes.forEach(node => {
+          if (node.type === 'text') {
+            textContent.push(node.text);
+          } else if (node.type === 'linebreak') {
+            textContent.push('\n');
+          } else if (node.children) {
+            traverse(node.children);
+            if (node.type === 'paragraph' || node.type === 'script-container') {
+                textContent.push('\n\n');
             }
           }
-        } else if (rootChild.children) {
-          for (const innerChild of rootChild.children) {
-            if (innerChild.type === 'text') text += innerChild.text + ' ';
-          }
-        }
-        if (text.length > 100) break;
-      }
+        });
+      };
+      traverse(parsedJson.root.children);
     }
   } catch (e) {
-    console.error("Failed to parse Lexical content for preview", e);
-    return "(미리보기를 생성할 수 없습니다)";
+    return <div className="text-red-400">대본 형식이 올바르지 않습니다.</div>;
   }
-  return text.trim();
+
+  return (
+    <div className="whitespace-pre-wrap leading-relaxed text-slate-300 font-sans">
+      {textContent.join('')}
+    </div>
+  );
 };
 
 const AdminScript = () => {
-  const { user } = useUser();
   const supabase = useSupabase();
-
-  const [groupedScripts, setGroupedScripts] = useState({});
-  const [userNamesMap, setUserNamesMap] = useState({});
+  const { userCache, getUserNames } = useUserCache();
+  const [scripts, setScripts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [userProfiles, setUserProfiles] = useState([]);
-  const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedScriptId, setSelectedScriptId] = useState(null);
-  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
-
-  const fetchUserProfiles = useCallback(async () => {
-    if (!supabase) return;
-    try {
-      const { data: profilesData, error: profilesError } = await supabase.from('user_profiles').select('user_id, member_name').order('member_name', { ascending: true });
-      if (profilesError) throw profilesError;
-
-      const { data: clerkUsersData, error: clerkUsersError } = await supabase.functions.invoke('get-all-clerk-users', { method: 'GET' });
-      if (clerkUsersError) throw clerkUsersError;
-
-      const clerkUsernameMap = new Map(clerkUsersData.map(u => [u.id, u.username]));
-      const combinedProfiles = profilesData.map(profile => ({ ...profile, username: clerkUsernameMap.get(profile.user_id) || profile.member_name }));
-      setUserProfiles(combinedProfiles || []);
-    } catch (err) {
-      console.error('Error fetching user profiles:', err);
-    }
-  }, [supabase]);
+  const [activeTab, setActiveTab] = useState("all");
 
   const fetchData = useCallback(async () => {
-    if(!supabase) return;
+    if (!supabase) return;
     setIsLoading(true);
-    setError(null);
     try {
-      const { data: scriptsData, error: scriptsError } = await supabase
+      const { data, error } = await supabase
         .from('scripts')
-        .select('id, title, content, updated_at, status, user_id, submitted_at')
-        .neq('status', 'draft');
-      if (scriptsError) throw scriptsError;
+        .select(`
+          id, title, content, updated_at, status, submitted_at, user_id,
+          projects (name)
+        `)
+        .neq('status', 'draft')
+        .order('submitted_at', { ascending: false });
 
-      const scriptsByUser = (scriptsData || []).reduce((acc, script) => {
-        if (!acc[script.user_id]) acc[script.user_id] = [];
-        acc[script.user_id].push(script);
-        return acc;
-      }, {});
-      setGroupedScripts(scriptsByUser);
-
-      const scriptUserIds = (scriptsData || []).map(s => s.user_id);
-      const uniqueUserIds = [...new Set(scriptUserIds)];
-
-      if (uniqueUserIds.length > 0) {
-        const response = await fetch('https://jymezpvjdcsdxfreozry.supabase.co/functions/v1/get-clerk-user-details', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userIds: uniqueUserIds }),
-        });
-        if (!response.ok) throw new Error('Failed to fetch user details');
-        const usersData = await response.json();
-        setUserNamesMap(usersData);
-
-        if (Object.keys(scriptsByUser).length > 0) {
-          setSelectedUserId(Object.keys(scriptsByUser)[0]);
-        }
+      if (error) throw error;
+      
+      const userIds = [...new Set(data.map(s => s.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        await getUserNames(userIds);
       }
+
+      setScripts(data || []);
     } catch (err) {
-      console.error('Error fetching script data:', err);
-      setError(err.message);
+      console.error('Error fetching scripts:', err);
+      toast.error('대본 목록을 불러오지 못했습니다.');
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, getUserNames]);
 
   useEffect(() => {
-    if (supabase && user) {
-      fetchData();
-      fetchUserProfiles();
-    }
-  }, [supabase, user, fetchData, fetchUserProfiles]);
+    fetchData();
+  }, [fetchData]);
 
-  useEffect(() => {
-    if (!supabase || !selectedUserId) {
-      setSelectedUserProfile(null);
-      return;
-    }
-    const fetchUserProfile = async () => {
-      const { data, error } = await supabase.from('user_profiles').select('*').eq('user_id', selectedUserId).single();
-      if (error && error.code !== 'PGRST116') console.error('Error fetching profile:', error);
-      else setSelectedUserProfile(data);
-    };
-    fetchUserProfile();
-  }, [supabase, selectedUserId]);
+  const handleStatusUpdate = async (scriptId, newStatus) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase
+        .from('scripts')
+        .update({ status: newStatus })
+        .eq('id', scriptId);
 
-  const handleUpdateScriptStatus = async (scriptId, newStatus) => {
-    const { error } = await supabase.from('scripts').update({ status: newStatus }).eq('id', scriptId);
-    if (error) alert(`대본 상태 업데이트 실패: ${error.message}`);
-    else {
-      alert('대본 상태가 업데이트되었습니다!');
-      fetchData(); // Refresh data
+      if (error) throw error;
+      toast.success(`상태가 '${newStatus}'(으)로 변경되었습니다.`);
+      fetchData(); // Refresh list
+    } catch (err) {
+      toast.error('상태 변경 실패: ' + err.message);
     }
   };
 
+  const filteredScripts = useMemo(() => {
+    if (activeTab === 'all') return scripts;
+    if (activeTab === 'pending') return scripts.filter(s => s.status === 'submitted' || s.status === 'under_review');
+    if (activeTab === 'approved') return scripts.filter(s => s.status === 'approved');
+    return scripts;
+  }, [scripts, activeTab]);
+
+  const groupedScripts = useMemo(() => {
+    const groups = filteredScripts.reduce((acc, script) => {
+        const userId = script.user_id;
+        if (!acc[userId]) acc[userId] = [];
+        acc[userId].push(script);
+        return acc;
+    }, {});
+
+    // Sort users by latest script submission
+    return Object.entries(groups).sort(([, aScripts], [, bScripts]) => {
+        const dateA = new Date(aScripts[0].submitted_at || aScripts[0].updated_at);
+        const dateB = new Date(bScripts[0].submitted_at || bScripts[0].updated_at);
+        return dateB - dateA;
+    });
+  }, [filteredScripts]);
+
+  const selectedScript = useMemo(() => 
+    scripts.find(s => s.id === selectedScriptId), 
+  [scripts, selectedScriptId]);
+
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-2 text-white">센터별 상세 조회</h1>
-      <p className="text-lg text-slate-400 mb-8">특정 센터의 대본 목록을 확인하고 관리합니다.</p>
-      <div className="mt-8 p-6 bg-slate-900 border border-slate-700 rounded-lg shadow-lg flex h-[70vh]">
-        {isLoading ? (
-          <p className="text-slate-300">로딩 중...</p>
-        ) : error ? (
-          <p className="text-red-400">오류: {error}</p>
-        ) : (
-          <>
-            {/* Column 1: All Centers */}
-            <div className="w-1/6 border-r border-slate-700 p-4 overflow-y-auto">
-              <h2 className="text-xl text-white font-semibold mb-4">전체 센터</h2>
-              <ul className="space-y-2">
-                {userProfiles.map((profile) => (
-                  <li key={profile.user_id} onClick={() => setSelectedUserId(profile.user_id)} className={`p-2 cursor-pointer rounded-md ${selectedUserId === profile.user_id ? 'bg-blue-900 bg-opacity-50 text-blue-200' : 'hover:bg-slate-800'}`}>
-                    {profile.username || profile.user_id}
-                  </li>
-                ))}
-              </ul>
-            </div>
+    <div className="flex h-[calc(100vh-6rem)] w-full gap-4 p-4 md:p-8">
+      {/* Left Panel: Script List */}
+      <div className="w-full md:w-1/3 flex flex-col gap-4 bg-card border rounded-lg p-2 overflow-hidden">
+        <div className="p-2">
+            <h2 className="text-xl font-bold mb-1">대본 관리</h2>
+            <p className="text-sm text-muted-foreground">접수된 대본을 검토하고 승인합니다.</p>
+        </div>
+        
+        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="all">전체</TabsTrigger>
+            <TabsTrigger value="pending">검토 대기</TabsTrigger>
+            <TabsTrigger value="approved">승인됨</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-            {/* Column 2: Center Details */}
-            <div className="w-1/6 border-r border-slate-700 p-4 overflow-y-auto">
-              <h2 className="text-xl text-white font-semibold mb-4">센터 정보</h2>
-              {selectedUserProfile ? (
-                <div className="p-3 bg-slate-800 rounded-md">
-                  <h3 className="font-bold text-lg text-white">{selectedUserProfile.member_name}</h3>
-                  <p className="text-sm text-slate-300 mt-2">담당자: {userNamesMap[selectedUserId]?.username || selectedUserId}</p>
-                  <p className="text-sm text-slate-300">연락처: {selectedUserProfile.phone_number || '없음'}</p>
-                </div>
-              ) : (
-                <p className="text-slate-400 text-sm">센터를 선택하세요.</p>
-              )}
-            </div>
+        <ScrollArea className="flex-1 px-1">
+            {isLoading ? (
+               <div className="flex justify-center py-4"><Loader2 className="animate-spin" /></div>
+            ) : groupedScripts.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">대본이 없습니다.</div>
+            ) : (
+                <Accordion type="multiple" className="w-full">
+                    {groupedScripts.map(([userId, userScripts]) => (
+                        <AccordionItem key={userId} value={userId}>
+                            <AccordionTrigger className="hover:no-underline py-3 px-2">
+                                <div className="flex items-center justify-between w-full pr-2">
+                                    <span className="font-semibold text-sm">
+                                        {userCache[userId]?.username || '센터 미정'}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        {userScripts.some(s => s.status === 'submitted') && (
+                                            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">NEW</Badge>
+                                        )}
+                                        <Badge variant="outline" className="text-xs">{userScripts.length}</Badge>
+                                    </div>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="pt-1 pb-4">
+                                <div className="flex flex-col gap-2">
+                                    {userScripts.map((script) => (
+                                        <button
+                                            key={script.id}
+                                            onClick={() => setSelectedScriptId(script.id)}
+                                            className={`flex flex-col items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:bg-accent/50 ${
+                                            selectedScriptId === script.id ? "bg-accent border-primary/50" : "bg-card/50"
+                                            }`}
+                                        >
+                                            <div className="flex w-full flex-col gap-1">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-medium text-xs text-muted-foreground truncate max-w-[150px]">
+                                                        {script.projects?.name || '프로젝트 미정'}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground">
+                                                        {new Date(script.updated_at).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                                <div className="line-clamp-2 text-sm font-medium w-full">
+                                                    {script.title || '제목 없음'}
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <Badge variant={script.status === 'approved' ? 'default' : 'outline'} className="text-[10px] h-5 px-1.5">
+                                                        {script.status}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                </Accordion>
+            )}
+        </ScrollArea>
+      </div>
 
-            {/* Column 3: Submitted Scripts */}
-            <div className="w-1/3 border-r border-slate-700 p-4 overflow-y-auto">
-              <h2 className="text-xl text-white font-semibold mb-4">접수된 대본</h2>
-              {selectedUserId && groupedScripts[selectedUserId] ? (
-                <ul className="space-y-2">
-                  {groupedScripts[selectedUserId].map((script) => (
-                    <li key={script.id} onClick={() => setSelectedScriptId(script.id)} className={`p-2 cursor-pointer rounded-md ${selectedScriptId === script.id ? 'bg-blue-900 bg-opacity-50 text-blue-200' : 'hover:bg-slate-800'}`}>
-                      <h3 className="font-bold text-white text-base">{script.title}</h3>
-                      <p className="text-xs text-slate-400 mt-1">상태: {script.status} | 수정: {new Date(script.updated_at).toLocaleString()}</p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-slate-400 text-sm">접수된 대본이 없습니다.</p>
-              )}
-            </div>
-
-            {/* Column 4: Script Detail */}
-            <div className="w-1/3 p-4 overflow-y-auto">
-              <h2 className="text-xl text-white font-semibold mb-4">대본 내용</h2>
-              {selectedScriptId ? (() => {
-                  const script = groupedScripts[selectedUserId]?.find(s => s.id === selectedScriptId);
-                  if (!script) return <p>대본을 선택해주세요.</p>;
-                  return (
-                    <div>
-                      <h3 className="font-bold text-white text-lg mb-2">{script.title}</h3>
-                      <p className="text-slate-300 mb-4">{extractTextFromLexical(script.content) || '(내용 없음)'}</p>
-                      <div className="mt-4 flex space-x-2">
-                        <button onClick={() => handleUpdateScriptStatus(script.id, 'under_review')} className={`px-3 py-1 text-sm rounded bg-yellow-500 hover:bg-yellow-600 text-white`}>검토 중</button>
-                        <button onClick={() => handleUpdateScriptStatus(script.id, 'approved')} className={`px-3 py-1 text-sm rounded bg-green-500 hover:bg-green-600 text-white`}>승인</button>
-                      </div>
+      {/* Right Panel: Script Detail */}
+      <div className="hidden md:flex flex-1 flex-col bg-card border rounded-lg overflow-hidden">
+        {selectedScript ? (
+            <>
+                <div className="flex items-center justify-between p-6 border-b">
+                    <div className="flex flex-col gap-1">
+                        <h2 className="text-2xl font-bold">{selectedScript.title}</h2>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1"><User className="w-3 h-3" /> {userCache[selectedScript.user_id]?.username || 'N/A'}</span>
+                            <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {selectedScript.projects?.name}</span>
+                            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(selectedScript.updated_at).toLocaleString()}</span>
+                        </div>
                     </div>
-                  );
-                })() : <p>대본을 선택해주세요.</p>}
+                    <div className="flex gap-2">
+                        <Button 
+                            variant="outline" 
+                            onClick={() => handleStatusUpdate(selectedScript.id, 'under_review')}
+                            disabled={selectedScript.status === 'under_review'}
+                        >
+                            검토 중
+                        </Button>
+                        <Button 
+                            className="bg-green-600 hover:bg-green-500" 
+                            onClick={() => handleStatusUpdate(selectedScript.id, 'approved')}
+                            disabled={selectedScript.status === 'approved'}
+                        >
+                            <CheckCircle className="mr-2 h-4 w-4" /> 승인
+                        </Button>
+                    </div>
+                </div>
+                <ScrollArea className="flex-1 p-6 bg-slate-950/30">
+                    <div className="max-w-3xl mx-auto bg-slate-900 border rounded-lg p-8 min-h-[500px] shadow-sm">
+                        <LexicalViewer content={selectedScript.content} />
+                    </div>
+                </ScrollArea>
+            </>
+        ) : (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <FileText className="h-12 w-12 mb-4 opacity-20" />
+                <p>좌측 목록에서 대본을 선택하여 내용을 확인하세요.</p>
             </div>
-          </>
         )}
       </div>
     </div>
