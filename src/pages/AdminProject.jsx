@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import ProjectInfoModal from '../components/ProjectInfoModal';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import Dialog components
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 const AdminProject = () => {
   const supabase = useSupabase();
@@ -34,7 +35,7 @@ const AdminProject = () => {
     try {
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
-        .select('*, user_profiles(center_name, member_name, phone_number)')
+        .select('*, user_profiles(center_name, member_name, phone_number, address)')
         .order('created_at', { ascending: false });
       if (projectsError) throw projectsError;
 
@@ -68,24 +69,32 @@ const AdminProject = () => {
     fetchData(); // Refresh data after closing modal
   };
 
-  const handleProjectSave = async (updatedProject) => {
+  const handleProjectSave = async (projectChanges, profileChanges) => {
     if (!supabase) return;
     try {
-      const { error: updateError } = await supabase
+      // Update projects table
+      const { error: projectError } = await supabase
         .from('projects')
-        .update(updatedProject)
-        .eq('id', updatedProject.id);
+        .update(projectChanges)
+        .eq('id', projectChanges.id);
 
-      if (updateError) {
-        console.error('Error updating project:', updateError);
-        alert('저장 실패: ' + updateError.message);
-        return;
+      if (projectError) throw projectError;
+
+      // Update user_profiles table if profileChanges exists
+      if (profileChanges) {
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .update(profileChanges)
+          .eq('user_id', profileChanges.user_id);
+        
+        if (profileError) throw profileError;
       }
-      alert('성공적으로 저장되었습니다.');
+
+      toast.success('프로젝트가 성공적으로 저장되었습니다.');
       handleCloseModal(); // Close modal and refresh data
     } catch (error) {
       console.error('Error saving project:', error);
-      alert('저장 중 오류 발생: ' + error.message);
+      toast.error('저장 중 오류 발생: ' + error.message);
     }
   };
 

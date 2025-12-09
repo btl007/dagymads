@@ -9,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
  * @param {function} props.onSelect - Function to call when a date is selected.
  * @param {string} [props.className] - Optional additional class names.
  */
-export const CustomCalendar = ({ highlightedDates, selectedDate, onSelect, className }) => {
+export const CustomCalendar = ({ highlightedDates, className, ...props }) => {
 
   const modifiers = {
     highlighted: highlightedDates || [],
@@ -21,13 +21,11 @@ export const CustomCalendar = ({ highlightedDates, selectedDate, onSelect, class
 
   return (
     <Calendar
-      mode="single"
-      selected={selectedDate}
-      onSelect={onSelect}
       modifiers={modifiers}
       modifiersClassNames={modifiersClassNames}
       className={className} // Pass through any additional classes
       captionLayout="dropdown"
+      {...props}
     />
   );
 };

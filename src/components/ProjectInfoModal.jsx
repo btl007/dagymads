@@ -42,22 +42,23 @@ const ProjectInfoModal = ({ project, onSave, onClose, userName, onDataRefresh })
       setUserInfo(project.user_profiles?.info || '');
       setCameraCrew(project.camera_crew || '');
 
-      // Fetch confirmed slot time if project is in a relevant state
-      if (project.id && project.status === 'schedule_fixed') {
+      // Fetch confirmed slot time for the project
+      if (project.id) {
         const fetchConfirmedSlot = async () => {
           const { data: slotData, error: slotError } = await supabase
             .from('time_slots')
             .select('slot_time')
             .eq('project_id', project.id)
             .eq('booking_status', 'confirmed')
-            .single();
+            .maybeSingle();
+            
           if (slotData) {
             setConfirmedSlot(slotData);
+          } else {
+            setConfirmedSlot(null);
           }
         };
         fetchConfirmedSlot();
-      } else {
-        setConfirmedSlot(null);
       }
     }
   }, [project, supabase]);

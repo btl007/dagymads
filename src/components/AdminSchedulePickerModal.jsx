@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { CustomCalendar } from './CustomCalendar';
+import { ko } from 'date-fns/locale';
 
 const AdminSchedulePickerModal = ({ project, isOpen, onClose }) => {
   const supabase = useSupabase();
@@ -72,6 +73,7 @@ const AdminSchedulePickerModal = ({ project, isOpen, onClose }) => {
   }, [allSlots]);
 
   const handleDateSelect = (date) => {
+    if (!date) return; // Prevent deselection if needed, or handle it
     setSelectedDate(date);
     const slotsForDate = allSlots.filter(slot => {
       const slotDate = new Date(slot.slot_time); // Convert slot_time string to a Date object
@@ -129,8 +131,11 @@ const AdminSchedulePickerModal = ({ project, isOpen, onClose }) => {
             <h3 className="text-lg font-semibold mb-4 text-center">1. 원하시는 날짜를 선택하세요.</h3>
             <p className="text-center text-sm text-gray-400 mb-4">(모든 슬롯 현황이 표시됩니다.)</p>
             <CustomCalendar
-              highlightedDates={highlightedDates}
+              mode="single"
+              selected={selectedDate}
               onSelect={handleDateSelect}
+              highlightedDates={highlightedDates}
+              locale={ko}
               className="w-full"
             />
           </div>

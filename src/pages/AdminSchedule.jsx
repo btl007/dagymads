@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, startOfMonth, endOfMonth, startOfDay, isSameDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ko } from 'date-fns/locale';
+import { Loader2 } from 'lucide-react';
 import { useSupabase } from '@/components/SupabaseProvider';
 import { CustomCalendar } from '@/components/CustomCalendar';
 import { Button } from '@/components/ui/button';
@@ -139,17 +140,9 @@ const AdminSchedule = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 bg-card p-4 rounded-lg border">
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-xl font-semibold">{format(currentMonth, 'yyyy년 MM월')}</h2>
-            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
           <CustomCalendar
             mode="single"
+            locale={ko}
             selected={selectedDay}
             onSelect={setSelectedDay}
             month={currentMonth}
