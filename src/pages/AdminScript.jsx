@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Loader2, CheckCircle, XCircle, FileText, User, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import { STATUS_MAP } from '../data/projectStatuses.js';
 
 // Helper to render Lexical content as simple text with line breaks
 const LexicalViewer = ({ content }) => {
@@ -96,8 +97,15 @@ const AdminScript = () => {
         .eq('id', scriptId);
 
       if (error) throw error;
-      toast.success(`상태가 '${newStatus}'(으)로 변경되었습니다.`);
-      fetchData(); // Refresh list
+      
+      // Optimistic Update
+      setScripts(prevScripts => prevScripts.map(script => 
+        script.id === scriptId 
+          ? { ...script, status: newStatus, updated_at: new Date().toISOString() } 
+          : script
+      ));
+
+      toast.success(`상태가 '${STATUS_MAP.get(newStatus) || newStatus}'(으)로 변경되었습니다.`);
     } catch (err) {
       toast.error('상태 변경 실패: ' + err.message);
     }
@@ -192,8 +200,16 @@ const AdminScript = () => {
                                                     {script.title || '제목 없음'}
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <Badge variant={script.status === 'approved' ? 'default' : 'outline'} className="text-[10px] h-5 px-1.5">
-                                                        {script.status}
+                                                    <Badge 
+                                                        variant="outline" 
+                                                        className={`text-[10px] h-5 px-1.5 ${
+                                                            script.status === 'submitted' ? "bg-red-500/15 text-red-500 border-red-500/50 hover:bg-red-500/25" :
+                                                            script.status === 'under_review' ? "bg-green-500/15 text-green-500 border-green-500/50 hover:bg-green-500/25" :
+                                                            script.status === 'approved' ? "bg-blue-500/15 text-blue-500 border-blue-500/50 hover:bg-blue-500/25" :
+                                                            "bg-slate-500/15 text-slate-500 border-slate-500/50"
+                                                        }`}
+                                                    >
+                                                        {STATUS_MAP.get(script.status) || script.status}
                                                     </Badge>
                                                 </div>
                                             </div>

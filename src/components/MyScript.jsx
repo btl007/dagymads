@@ -76,6 +76,28 @@ const MyScript = ({ handleNavigate }) => {
     };
 
     fetchScripts();
+
+    // Set up Realtime subscription
+    const channel = supabase
+      .channel('my-scripts-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'scripts' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setScripts((prev) => [payload.new, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setScripts((prev) => prev.map((s) => (s.id === payload.new.id ? { ...s, ...payload.new } : s)));
+          } else if (payload.eventType === 'DELETE') {
+            setScripts((prev) => prev.filter((s) => s.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [supabase]);
 
   const handleDelete = async (scriptId) => {

@@ -12,6 +12,11 @@ export const PROJECT_STATUSES = [
   { id: 'project_complete', title: '최종 완료' },
   { id: 'project_pending', title: '프로젝트 보류' },
   { id: 'project_cancled', title: '프로젝트 취소' },
+  // Script specific statuses
+  { id: 'submitted', title: '접수됨' },
+  { id: 'under_review', title: '검토 중' },
+  { id: 'approved', title: '승인됨' },
+  { id: 'draft', title: '임시저장' },
 ];
 
 export const STATUS_MAP = new Map(
