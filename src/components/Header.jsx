@@ -19,6 +19,7 @@ export default function Header() {
   ];
 
   if (isSignedIn) { // Only show profile link if signed in
+    menuItems.unshift({ label: "Dashboard", to: "dashboard" }); // Add Dashboard at the beginning
     menuItems.push({ label: "My Profile", to: "profile" });
   }
 

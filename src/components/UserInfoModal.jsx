@@ -14,6 +14,7 @@ const UserInfoModal = ({ userProfile, username, onSave, onClose }) => {
   // State for editable fields
   const [centerName, setCenterName] = useState('');
   const [memberName, setMemberName] = useState('');
+  const [salesManager, setSalesManager] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [address, setAddress] = useState('');
   
@@ -21,6 +22,7 @@ const UserInfoModal = ({ userProfile, username, onSave, onClose }) => {
     if (userProfile) {
       setCenterName(userProfile.center_name || '');
       setMemberName(userProfile.member_name || '');
+      setSalesManager(userProfile.sales_manager || '');
       setPhoneNumber(userProfile.phone_number || '');
       setAddress(userProfile.address || '');
     }
@@ -32,6 +34,7 @@ const UserInfoModal = ({ userProfile, username, onSave, onClose }) => {
     const updates = {
       center_name: centerName,
       member_name: memberName,
+      sales_manager: salesManager,
       phone_number: phoneNumber,
       address: address,
     };
@@ -118,6 +121,18 @@ const UserInfoModal = ({ userProfile, username, onSave, onClose }) => {
             id="memberName"
             value={memberName}
             onChange={(e) => setMemberName(e.target.value)}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="salesManager" className="text-right">
+            영업 담당자
+          </Label>
+          <Input
+            id="salesManager"
+            value={salesManager}
+            onChange={(e) => setSalesManager(e.target.value)}
+            placeholder="미정"
             className="col-span-3"
           />
         </div>

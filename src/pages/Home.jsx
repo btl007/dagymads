@@ -1,8 +1,16 @@
 import React from 'react'
+import { Navigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 
 import Header from '../components/Header';
 
 export default function Home() {
+    const { isSignedIn, isLoaded } = useUser();
+
+    if (isLoaded && isSignedIn) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
     return(
         <section className="relative w-full min-h-screen flex flex-col justify-center items-center text-center px-6">
             

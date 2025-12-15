@@ -28,6 +28,7 @@ import Home from './pages/Home';
 import DagymGuide from './pages/dagymguide';
 import ScriptEditor from './pages/scriptEditor';
 import UserProfile from './pages/UserProfile';
+import CenterDashboard from './pages/CenterDashboard';
 
 import NotFound from './pages/NotFound';
 
@@ -79,6 +80,20 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/dagymguide" element={<DagymGuide />} />
         
+        {/* Center Dashboard */}
+        <Route
+          path="/dashboard"
+          element={
+            <>
+              <SignedIn>
+                <CenterDashboard />
+              </SignedIn>
+              <SignedOut>
+                <RedirectToSignIn />
+              </SignedOut>
+            </>
+          }
+        />
         
         {/* Private Route */}
         <Route
